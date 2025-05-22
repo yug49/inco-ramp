@@ -6,6 +6,7 @@ import {IERC20} from "./interfaces/IERC20.sol";
 import {Ownable} from "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {AggregatorV3Interface} from
     "../lib/chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+import {euint256, ebool, e} from "../lib/lightning-rod/node_modules/@inco/lightning/src/Lib.sol";
 
 /**
  * @title On Ramp and Off Ramp Contract
@@ -17,6 +18,8 @@ import {AggregatorV3Interface} from
  * 3. Legality - since only verified users can leverage the services of this contract, each transaction can be traced back to the user in case of any illegal activity.
  */
 contract Ramp is Ownable {
+    using e for *;
+
     error Ramp__InvalidAddress();
     error Ramp__InvalidKYCData();
     error Ramp__UserAlreadyRegistered();
@@ -32,17 +35,27 @@ contract Ramp is Ownable {
     error Ramp__NotAValidOrderId();
     error Ramp__NotAllowed();
     error Ramp__NoOrdersYet();
+    error Ramp__UserRegistrationRequestesStillPending();
+    error Ramp__UserRegistrationRequestNotFound();
 
     /**
-     * @dev Struct to represent a user.
+     * @dev Struct to represent a pending (not yet approved by the admin) user.
      * @param userAddress The address of the user.
      * @param kycData The KYC data of the user in encrypted format leveraging inco confidentiality layer
-     * @param isVerified A boolean indicating whether the user is verified or not.
      */
-    struct User {
+    struct PendingUser {
         address userAddress;
         bytes kycData; //encrypted KYC data
-        bool isVerified;
+    }
+
+    /**
+     * @dev Struct to represent a approved user.
+     * @param userAddress The address of the user.
+     * @param kycData The KYC data of the user in encrypted format leveraging inco confidentiality layer
+     */
+    struct ApprovedUser {
+        address userAddress;
+        euint256 kycData;
     }
 
     /**
@@ -59,7 +72,7 @@ contract Ramp is Ownable {
      */
     struct Order {
         uint256 id;
-        User user;
+        ApprovedUser user;
         uint256 amountOfFiatInUsd; // Amount of fiat in usd
         uint256 amountOfToken; // Amount of token to buy/sell
         string fiat;
@@ -69,8 +82,11 @@ contract Ramp is Ownable {
         uint256 timestamp;
     }
 
-    mapping(address => User) private users; // Mapping of user address to User struct
-    address[] private requestsForRegistrations; // Array of user addresses that are pending for registration approval
+    mapping(address => PendingUser) private pendingUsers; // Mapping of user address to PendingUser struct
+    mapping(address => ApprovedUser) private approvedUsers; // Mapping of user address to ApprovedUser struct
+    address[] private listOfPendingUsers; // Array of user addresses that are pending for registration approval
+    address[] private listOfApprovedUsers; // Array of user addresses that are approved
+
     uint256 private orderIdCounter; // Counter for order IDs
     Order[] private orders; // Array of all orders indexed by orderId
 
@@ -105,7 +121,7 @@ contract Ramp is Ownable {
      * @dev This is to ensure that only verified users can create orders.
      */
     modifier onlyVerifiedUser(address userAddress) {
-        if (!users[userAddress].isVerified) revert Ramp__UserNotRegistered();
+        if (approvedUsers[userAddress].userAddress == address(0)) revert Ramp__UserNotRegistered();
         _;
     }
 
@@ -187,8 +203,13 @@ contract Ramp is Ownable {
      * @param kycData The encrypted KYC data of the user, encrypted using the inco.js sdk.
      */
     function registerUser(address userAddress, bytes memory kycData) public {
-        users[userAddress] = User(userAddress, kycData, false);
-        requestsForRegistrations.push(userAddress);
+        if (userAddress == address(0)) revert Ramp__InvalidAddress();
+        if (kycData.length == 0) revert Ramp__InvalidKYCData();
+        if (approvedUsers[userAddress].userAddress != address(0)) revert Ramp__UserAlreadyRegistered();
+        if (pendingUsers[userAddress].userAddress != address(0)) revert Ramp__UserRegistrationRequestesStillPending();
+
+        pendingUsers[userAddress] = PendingUser(userAddress, kycData);
+        listOfPendingUsers.push(userAddress);
     }
 
     /**
@@ -197,16 +218,19 @@ contract Ramp is Ownable {
      */
     function approveUserRegistration(address userAddress) public onlyOwner {
         if (userAddress == address(0)) revert Ramp__InvalidAddress();
-        if (users[userAddress].userAddress == address(0)) revert Ramp__InvalidAddress();
-        if (users[userAddress].isVerified) revert Ramp__UserAlreadyRegistered();
-        if (users[userAddress].kycData.length == 0) revert Ramp__InvalidKYCData();
+        if (pendingUsers[userAddress].userAddress == address(0)) revert Ramp__UserRegistrationRequestNotFound();
 
-        users[userAddress].isVerified = true;
+        approvedUsers[userAddress] =
+            ApprovedUser(userAddress, pendingUsers[userAddress].kycData.newEuint256(msg.sender));
+        listOfApprovedUsers.push(userAddress);
 
-        for (uint256 i = 0; i < requestsForRegistrations.length; i++) {
-            if (requestsForRegistrations[i] == userAddress) {
-                requestsForRegistrations[i] = requestsForRegistrations[requestsForRegistrations.length - 1];
-                requestsForRegistrations.pop();
+        approvedUsers[userAddress].kycData.allow(userAddress); // allow the user to see its own KYC data
+
+        delete pendingUsers[userAddress];
+        for (uint256 i = 0; i < listOfPendingUsers.length; i++) {
+            if (listOfPendingUsers[i] == userAddress) {
+                listOfPendingUsers[i] = listOfPendingUsers[listOfPendingUsers.length - 1];
+                listOfPendingUsers.pop();
                 break;
             }
         }
@@ -218,14 +242,15 @@ contract Ramp is Ownable {
      */
     function rejectUserRegistration(address userAddress) public onlyOwner {
         if (userAddress == address(0)) revert Ramp__InvalidAddress();
-        if (users[userAddress].isVerified) revert Ramp__UserAlreadyRegistered(); // if user is already verified, we can't reject, try removing instead
+        if (pendingUsers[userAddress].userAddress == address(0)) revert Ramp__UserRegistrationRequestNotFound();
+        if (approvedUsers[userAddress].userAddress != address(0)) revert Ramp__UserAlreadyRegistered(); // if user is already verified, we can't reject, try removing instead
 
-        delete users[userAddress];
+        delete pendingUsers[userAddress];
 
-        for (uint256 i = 0; i < requestsForRegistrations.length; i++) {
-            if (requestsForRegistrations[i] == userAddress) {
-                requestsForRegistrations[i] = requestsForRegistrations[requestsForRegistrations.length - 1];
-                requestsForRegistrations.pop();
+        for (uint256 i = 0; i < listOfPendingUsers.length; i++) {
+            if (listOfPendingUsers[i] == userAddress) {
+                listOfPendingUsers[i] = listOfPendingUsers[listOfPendingUsers.length - 1];
+                listOfPendingUsers.pop();
                 break;
             }
         }
@@ -236,7 +261,14 @@ contract Ramp is Ownable {
      * @param userAddress The address of the user to delete.
      */
     function deleteUser(address userAddress) public onlyOwner onlyVerifiedUser(userAddress) {
-        delete users[userAddress];
+        delete approvedUsers[userAddress];
+        for (uint256 i = 0; i < listOfApprovedUsers.length; i++) {
+            if (listOfApprovedUsers[i] == userAddress) {
+                listOfApprovedUsers[i] = listOfApprovedUsers[listOfApprovedUsers.length - 1];
+                listOfApprovedUsers.pop();
+                break;
+            }
+        }
     }
 
     /// @note Order Functions
@@ -263,7 +295,7 @@ contract Ramp is Ownable {
         orders.push(
             Order(
                 orderIdCounter,
-                users[userAddress],
+                approvedUsers[userAddress],
                 amountOfFiatInUsd,
                 amountOfToken,
                 fiat,
@@ -302,7 +334,7 @@ contract Ramp is Ownable {
         orders.push(
             Order(
                 orderIdCounter,
-                users[userAddress],
+                approvedUsers[userAddress],
                 amountOfFiatInUsd,
                 amountOfToken,
                 fiat,
@@ -402,12 +434,20 @@ contract Ramp is Ownable {
 
     /* Getter Functions */
 
-    function getUser(address userAddress) public view returns (User memory) {
-        return users[userAddress];
+    function getApprovedUser(address userAddress) public view returns (ApprovedUser memory) {
+        return approvedUsers[userAddress];
     }
 
-    function getPendingRegistrations() public view returns (address[] memory) {
-        return requestsForRegistrations;
+    function getPendingUser(address userAddress) public view returns (PendingUser memory) {
+        return pendingUsers[userAddress];
+    }
+
+    function getListOfPendingRegistrations() public view returns (address[] memory) {
+        return listOfPendingUsers;
+    }
+
+    function getListOfApprovedUsers() public view returns (address[] memory) {
+        return listOfApprovedUsers;
     }
 
     function getOrders() public view returns (Order[] memory) {
