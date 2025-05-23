@@ -1,0 +1,34 @@
+// This is a corrected helper function to add to the Dashboard component
+
+// Original conversion function
+// Convert from selected fiat to USD
+if (selectedFiat === 'USD') {
+  // If the selected currency is USD, no conversion needed
+  setUsdEquivalent(fiatAmountNum.toFixed(2));
+} else {
+  // For other currencies, need to divide by the rate
+  // The rate is how many units of foreign currency = 1 USD
+  const rate = exchangeRates[selectedFiat];
+  console.log(`Converting ${fiatAmountNum} ${selectedFiat} to USD with rate ${rate}`);
+  const usdValue = (fiatAmountNum / rate).toFixed(2);
+  console.log(`USD equivalent: ${usdValue}`);
+  setUsdEquivalent(usdValue);
+}
+
+/*
+The issue with the conversion function might be with how the ExchangeRate-API works.
+The API returns rates in the format 1 USD = X of foreign currency.
+
+For example, if 1 USD = 83 INR, then:
+- To convert 100 INR to USD: 100 / 83 = 1.20 USD (which is correct)
+
+Let's check how the API values are structured:
+1. The API returns rates with USD as the base currency
+2. So a rate of 83 for INR means 1 USD = 83 INR
+3. To convert from INR to USD, we divide the INR amount by the rate: INR amount / rate = USD amount
+
+Let's validate if we have any other problems:
+1. Make sure we're getting the correct rates from the API - Log them clearly to console
+2. Check if the parsing of the fiat amount is working correctly
+3. Make sure the UI is displaying the correct value
+*/

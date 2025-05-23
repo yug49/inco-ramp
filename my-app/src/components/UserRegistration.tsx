@@ -4,7 +4,7 @@ import { chainsToRamp, rampAbi } from '../constants';
 import { encodeAbiParameters, parseAbiParameters } from 'viem';
 import { useRouter } from 'next/navigation';
 import { getViemChain, supportedChains } from '@inco/js';
-import { Lightning } from '@inco/js/lite';
+import { Lightning } from '@inco/js/lite'
 import { createWalletClient, http } from 'viem';
 
 // Types for the form data
@@ -20,11 +20,15 @@ interface FormData {
 // User status types
 type UserStatus = 'NOT_REGISTERED' | 'PENDING_VERIFICATION' | 'VERIFIED' | 'LOADING';
 
-// Type for user data returned from contract
-interface UserData {
+// Types for user data returned from contract
+interface PendingUserData {
   userAddress: string;
-  isVerified: boolean;
-  kycData: string // For any additional properties returned by the contract
+  kycData: string; // Encrypted KYC data as bytes
+}
+
+interface ApprovedUserData {
+  userAddress: string;
+  kycData: any; // Encrypted KYC data as euint256
 }
 
 const UserRegistration: React.FC = () => {
@@ -56,39 +60,60 @@ const UserRegistration: React.FC = () => {
   // Get ramp address for current chain
   const rampAddress = chainsToRamp[chainId]?.ramp;
   
-  // Read user data from contract
-  const { data: userData, isPending: isLoading, refetch } = useReadContract({
+  // Read pending user data from contract
+  const { data: pendingUserData, isPending: isPendingLoading, refetch: refetchPendingUser } = useReadContract({
     address: rampAddress as `0x${string}` | undefined,
     abi: rampAbi,
-    functionName: 'getUser',
+    functionName: 'getPendingUser',
     args: [userAddress],
     query: {
       enabled: isConnected && !!rampAddress && !!userAddress,
     },
-  }) as { data: UserData | undefined, isPending: boolean, refetch: () => Promise<any> };
+  }) as { data: PendingUserData | undefined, isPending: boolean, refetch: () => Promise<any> };
+  
+  // Read approved user data from contract
+  const { data: approvedUserData, isPending: isApprovedLoading, refetch: refetchApprovedUser } = useReadContract({
+    address: rampAddress as `0x${string}` | undefined,
+    abi: rampAbi,
+    functionName: 'getApprovedUser',
+    args: [userAddress],
+    query: {
+      enabled: isConnected && !!rampAddress && !!userAddress,
+    },
+  }) as { data: ApprovedUserData | undefined, isPending: boolean, refetch: () => Promise<any> };
   
   // Write contract function to register user
   const { data: hash, isPending, error, writeContractAsync } = useWriteContract()
   
   // Effect to determine user status based on contract data
   useEffect(() => {
+    const isLoading = isPendingLoading || isApprovedLoading;
+    
     if (isLoading) {
       setUserStatus('LOADING');
       return;
     }
     
-    if (!userData || userData.userAddress === '0x0000000000000000000000000000000000000000') {
-      setUserStatus('NOT_REGISTERED');
-    } else if (!userData.isVerified) {
-      setUserStatus('PENDING_VERIFICATION');
-    } else {
+    // Check if user is approved
+    if (approvedUserData && approvedUserData.userAddress !== '0x0000000000000000000000000000000000000000') {
       setUserStatus('VERIFIED');
-      // Redirect to main app if user is verified
+      // Redirect to dashboard if user is verified
       if (typeof window !== 'undefined') {
         router.push('/dashboard');
+        router.push('/dashboard');
       }
+      return;
     }
-  }, [userData, isLoading, router]);
+    
+    // Check if user registration is pending
+    if (pendingUserData && pendingUserData.userAddress !== '0x0000000000000000000000000000000000000000') {
+      setUserStatus('PENDING_VERIFICATION');
+      return;
+    }
+    
+    // User is not registered
+    setUserStatus('NOT_REGISTERED');
+  }, [pendingUserData, approvedUserData, isPendingLoading, isApprovedLoading, router]);
   
   // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -131,12 +156,13 @@ const UserRegistration: React.FC = () => {
       }
 
       const zap = Lightning.latest('testnet', chainIdForInco);
+      console.log("Lightning instance created");
       
       // Create wallet client for Inco
       const walletClient = createWalletClient({
         chain: getViemChain(chainIdForInco),
         account: "0x792b89393cA2eC17797ff6C4D17a397ffe0f4AB6",
-        transport: http('https://base-sepolia-rpc.publicnode.com'),
+        transport: http('https://chain-proxy.wallet.coinbase.com?targetName=base-sepolia'),
       });
 
       // For debugging
@@ -187,7 +213,7 @@ const UserRegistration: React.FC = () => {
       });
       
       // Refresh user data
-      await refetch();
+      await Promise.all([refetchPendingUser(), refetchApprovedUser()]);
       
     } catch (error) {
       console.error('Error registering user:', error);

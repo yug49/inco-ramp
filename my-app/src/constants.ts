@@ -6,7 +6,7 @@ interface ContractsConfig {
 
 export const chainsToRamp: ContractsConfig = {
     84532: {
-        ramp: "0x71e60474277D3846fCC9EF4C0bF14289E3bcB15F"
+        ramp: "0xB5F0F0E22123279f0A599Dd9E80dF5DC2Ae421A6"
     }
 }
 
@@ -807,10 +807,59 @@ export const rampAbi = [
         },
         {
             "type": "function",
+            "name": "getApprovedUser",
+            "inputs": [
+                {
+                    "name": "userAddress",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "tuple",
+                    "internalType": "struct Ramp.ApprovedUser",
+                    "components": [
+                        {
+                            "name": "userAddress",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "kycData",
+                            "type": "bytes32",
+                            "internalType": "euint256"
+                        }
+                    ]
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
             "name": "getLatestOrderId",
             "inputs": [],
             "outputs": [
                 { "name": "", "type": "uint256", "internalType": "uint256" }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getListOfApprovedUsers",
+            "inputs": [],
+            "outputs": [
+                { "name": "", "type": "address[]", "internalType": "address[]" }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "getListOfPendingRegistrations",
+            "inputs": [],
+            "outputs": [
+                { "name": "", "type": "address[]", "internalType": "address[]" }
             ],
             "stateMutability": "view"
         },
@@ -838,7 +887,7 @@ export const rampAbi = [
                         {
                             "name": "user",
                             "type": "tuple",
-                            "internalType": "struct Ramp.User",
+                            "internalType": "struct Ramp.ApprovedUser",
                             "components": [
                                 {
                                     "name": "userAddress",
@@ -847,13 +896,8 @@ export const rampAbi = [
                                 },
                                 {
                                     "name": "kycData",
-                                    "type": "bytes",
-                                    "internalType": "bytes"
-                                },
-                                {
-                                    "name": "isVerified",
-                                    "type": "bool",
-                                    "internalType": "bool"
+                                    "type": "bytes32",
+                                    "internalType": "euint256"
                                 }
                             ]
                         },
@@ -915,7 +959,7 @@ export const rampAbi = [
                         {
                             "name": "user",
                             "type": "tuple",
-                            "internalType": "struct Ramp.User",
+                            "internalType": "struct Ramp.ApprovedUser",
                             "components": [
                                 {
                                     "name": "userAddress",
@@ -924,13 +968,8 @@ export const rampAbi = [
                                 },
                                 {
                                     "name": "kycData",
-                                    "type": "bytes",
-                                    "internalType": "bytes"
-                                },
-                                {
-                                    "name": "isVerified",
-                                    "type": "bool",
-                                    "internalType": "bool"
+                                    "type": "bytes32",
+                                    "internalType": "euint256"
                                 }
                             ]
                         },
@@ -976,10 +1015,32 @@ export const rampAbi = [
         },
         {
             "type": "function",
-            "name": "getPendingRegistrations",
-            "inputs": [],
+            "name": "getPendingUser",
+            "inputs": [
+                {
+                    "name": "userAddress",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
             "outputs": [
-                { "name": "", "type": "address[]", "internalType": "address[]" }
+                {
+                    "name": "",
+                    "type": "tuple",
+                    "internalType": "struct Ramp.PendingUser",
+                    "components": [
+                        {
+                            "name": "userAddress",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "kycData",
+                            "type": "bytes",
+                            "internalType": "bytes"
+                        }
+                    ]
+                }
             ],
             "stateMutability": "view"
         },
@@ -1013,42 +1074,6 @@ export const rampAbi = [
             ],
             "outputs": [
                 { "name": "", "type": "address", "internalType": "address" }
-            ],
-            "stateMutability": "view"
-        },
-        {
-            "type": "function",
-            "name": "getUser",
-            "inputs": [
-                {
-                    "name": "userAddress",
-                    "type": "address",
-                    "internalType": "address"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "tuple",
-                    "internalType": "struct Ramp.User",
-                    "components": [
-                        {
-                            "name": "userAddress",
-                            "type": "address",
-                            "internalType": "address"
-                        },
-                        {
-                            "name": "kycData",
-                            "type": "bytes",
-                            "internalType": "bytes"
-                        },
-                        {
-                            "name": "isVerified",
-                            "type": "bool",
-                            "internalType": "bool"
-                        }
-                    ]
-                }
             ],
             "stateMutability": "view"
         },
@@ -1197,5 +1222,15 @@ export const rampAbi = [
             "name": "Ramp__UserAlreadyRegistered",
             "inputs": []
         },
-        { "type": "error", "name": "Ramp__UserNotRegistered", "inputs": [] }
+        { "type": "error", "name": "Ramp__UserNotRegistered", "inputs": [] },
+        {
+            "type": "error",
+            "name": "Ramp__UserRegistrationRequestNotFound",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "Ramp__UserRegistrationRequestesStillPending",
+            "inputs": []
+        }
     ]
