@@ -6,7 +6,7 @@ interface ContractsConfig {
 
 export const chainsToRamp: ContractsConfig = {
     84532: {
-        ramp: "0xB5F0F0E22123279f0A599Dd9E80dF5DC2Ae421A6"
+        ramp: "0xF7A614Ed71C46A0b86d5B5819D075DB87D3D1798"
     }
 }
 
@@ -819,7 +819,7 @@ export const rampAbi = [
                 {
                     "name": "",
                     "type": "tuple",
-                    "internalType": "struct Ramp.ApprovedUser",
+                    "internalType": "struct Ramp.User",
                     "components": [
                         {
                             "name": "userAddress",
@@ -887,7 +887,7 @@ export const rampAbi = [
                         {
                             "name": "user",
                             "type": "tuple",
-                            "internalType": "struct Ramp.ApprovedUser",
+                            "internalType": "struct Ramp.User",
                             "components": [
                                 {
                                     "name": "userAddress",
@@ -959,7 +959,7 @@ export const rampAbi = [
                         {
                             "name": "user",
                             "type": "tuple",
-                            "internalType": "struct Ramp.ApprovedUser",
+                            "internalType": "struct Ramp.User",
                             "components": [
                                 {
                                     "name": "userAddress",
@@ -1027,7 +1027,7 @@ export const rampAbi = [
                 {
                     "name": "",
                     "type": "tuple",
-                    "internalType": "struct Ramp.PendingUser",
+                    "internalType": "struct Ramp.User",
                     "components": [
                         {
                             "name": "userAddress",
@@ -1036,8 +1036,8 @@ export const rampAbi = [
                         },
                         {
                             "name": "kycData",
-                            "type": "bytes",
-                            "internalType": "bytes"
+                            "type": "bytes32",
+                            "internalType": "euint256"
                         }
                     ]
                 }

@@ -13,6 +13,8 @@
     "@rainbow-me/rainbowkit": "^2.2.5",
     "@tanstack/react-query": "^5.76.1",
     "date-fns": "^4.1.0",
+    "framer-motion": "^12.12.2",
+    "lucide-react": "^0.511.0",
     "next": "15.3.2",
     "razorpay": "github:razorpay/razorpay-node",
     "react": "^19.0.0",

@@ -713,6 +713,13 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
                       </select>
                     </div>
                   </div>
+
+                  {/* Information Note - positioned above submit button */}
+                  <div className="md:col-span-2 mt-4 mb-2 bg-blue-50 p-3 rounded-md border border-blue-200">
+                    <p className="text-sm text-blue-700">
+                      <strong>Note:</strong> In production, this app will also have a Razorpay or similar payment gateways' button here for users to send the respective fiat. Upon confirmation it will execute the <code className="bg-blue-100 px-1 rounded">fullfillOrder()</code> function of the Ramp contract automatically which will complete the order. For now the fullFillOrder() function can be called by the admin through the admin dashboard.
+                    </p>
+                  </div>
                 </>
               ) : (
                 <>
@@ -820,6 +827,13 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
                         />
                       </div>
                     )}
+                    
+                    {/* Information Note */}
+                    <div className="md:col-span-2 mt-2 mb-4 bg-blue-50 p-3 rounded-md border border-blue-200">
+                      <p className="text-sm text-blue-700">
+                        <strong>Note:</strong> In production, after the successful placement of the order, first the money will be automatically sent to the user on this bank account/UPI ID using a payment gateway. Then, upon confirmation it will execute the <code className="bg-blue-100 px-1 rounded">fullfillOrder()</code> function of the Ramp contract automatically which will complete the order. For now the fullFillOrder() function can be called by the admin through the admin dashboard.
+                      </p>
+                    </div>
                   </div>
                 </>
               )}

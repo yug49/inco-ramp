@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useChainId, useReadContract, useWriteContract, useAccount } from 'wagmi';
+import { readContract } from '@wagmi/core';
 import { chainsToRamp, rampAbi } from '../constants';
 import { Hex, createWalletClient, custom } from 'viem';
-import { getViemChain, supportedChains} from '@inco/js';
+import { getViemChain, supportedChains } from '@inco/js';
 import { Lightning } from '@inco/js/lite';
 import TokenManagement from './TokenManagement';
 import FiatManagement from './FiatManagement';
@@ -42,8 +43,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [decryptedData, setDecryptedData] = useState<number | null>(null);
   const [decryptionError, setDecryptionError] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<'dashboard' | 'tokens' | 'fiat'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'tokens' | 'fiat' | 'approved-users'>('dashboard');
   const [notifications, setNotifications] = useState<NotificationProps[]>([]);
+  const [approvedUserAddresses, setApprovedUserAddresses] = useState<string[]>([]);
+  const [isDeletingUser, setIsDeletingUser] = useState<string | null>(null);
+  const [isDecryptingUserDetails, setIsDecryptingUserDetails] = useState(false);
+  const [userDetailsDecryptedData, setUserDetailsDecryptedData] = useState<number | null>(null);
   
   // Add notification handler
   const addNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -59,18 +64,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
   };
   
   // Handle view change with notifications
-  const handleViewChange = (view: 'dashboard' | 'tokens' | 'fiat') => {
+  const handleViewChange = (view: 'dashboard' | 'tokens' | 'fiat' | 'approved-users') => {
     if (view === 'dashboard' && activeView !== 'dashboard') {
       // Coming back from token or fiat management
       if (activeView === 'tokens') {
         addNotification('Token management session completed', 'info');
       } else if (activeView === 'fiat') {
         addNotification('Fiat currency management session completed', 'info');
+      } else if (activeView === 'approved-users') {
+        addNotification('Approved users management session completed', 'info');
       }
     } else if (view === 'tokens') {
       addNotification('Managing supported tokens', 'info');
     } else if (view === 'fiat') {
       addNotification('Managing fiat currencies', 'info');
+    } else if (view === 'approved-users') {
+      addNotification('Managing approved users', 'info');
     }
     
     setActiveView(view);
@@ -203,12 +212,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
   
   // Update detailed user data when selected user changes
   useEffect(() => {
-    if (selectedUser && selectedPendingUserData) {
-      const userData = selectedPendingUserData as any;
-      setDetailedUser({
-        userAddress: selectedUser,
-        kycData: userData.kycData || '[Encrypted KYC Data]',
-      });
+    if (selectedUser) {
+      // Handle even if selectedPendingUserData is undefined or invalid
+      if (selectedPendingUserData) {
+        const userData = selectedPendingUserData as any;
+        
+        // Check if userData has expected structure
+        if (userData && typeof userData === 'object') {
+          setDetailedUser({
+            userAddress: selectedUser,
+            kycData: userData.kycData || '[Encrypted KYC Data]',
+          });
+        } else {
+          // Handle case when userData is not in expected format
+          console.warn("User data is not in the expected format:", userData);
+          setDetailedUser({
+            userAddress: selectedUser,
+            kycData: '[Encrypted KYC Data - Format Error]',
+          });
+        }
+      } else {
+        // Handle null/undefined data
+        console.warn("No user data found for selected user");
+        setDetailedUser({
+          userAddress: selectedUser,
+          kycData: '[No encrypted data available]',
+        });
+      }
     }
   }, [selectedUser, selectedPendingUserData]);
   
@@ -224,6 +254,111 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
     }
   };
 
+  // Function to handle view user details KYC data decryption
+  const handleDecryptUserDetails = async () => {
+    if (!selectedUser || !rampAddress || !adminAddress || !detailedUser) {
+      setDecryptionError("Missing required data for decryption. Please connect your wallet.");
+      return;
+    }
+    
+    // Additional validation for kycData
+    if (!detailedUser.kycData || 
+        detailedUser.kycData === '[No encrypted data available]' || 
+        detailedUser.kycData === '[Encrypted KYC Data - Format Error]') {
+      addNotification("No valid encrypted data available for this user.", "error");
+      return;
+    }
+    
+    try {
+      setIsDecryptingUserDetails(true);
+      setDecryptionError(null);
+      setUserDetailsDecryptedData(null);
+      
+      // Determine which chain to use for Inco
+      let chainIdForInco;
+      if (chainId === 84532) {
+        // Base Sepolia
+        chainIdForInco = supportedChains.baseSepolia;
+      } else {
+        // Fallback to Base Sepolia if chain not recognized
+        chainIdForInco = supportedChains.baseSepolia;
+      }
+      
+      // Create a Lightning instance - use Lightning.latest pattern to avoid parsing errors
+      const zap = Lightning.latest('testnet', chainIdForInco);
+      console.log("Lightning instance created for user details decryption");
+
+      // The account for which data was encrypted and which must authorize decryption.
+      const targetDecryptionAccount = "0x792b89393cA2eC17797ff6C4D17a397ffe0f4AB6";
+
+      // Ensure the connected admin is the one authorized to decrypt.
+      if (adminAddress?.toLowerCase() !== targetDecryptionAccount.toLowerCase()) {
+        setDecryptionError(`Decryption can only be performed by the account ${targetDecryptionAccount}. You are connected as ${adminAddress}. Please switch accounts in your wallet.`);
+        setIsDecryptingUserDetails(false);
+        addNotification(`Authentication error: Connect with account ${targetDecryptionAccount.substring(0, 6)}...${targetDecryptionAccount.substring(targetDecryptionAccount.length - 4)}`, "error");
+        return;
+      }
+
+      let signingWalletClient;
+      if (typeof window !== "undefined" && window.ethereum) {
+        signingWalletClient = createWalletClient({
+          account: adminAddress as Hex, // This will be targetDecryptionAccount if the check above passes
+          chain: getViemChain(chainIdForInco),
+          transport: custom(window.ethereum), // Use the browser's Ethereum provider for signing
+        });
+      } else {
+        setDecryptionError("Ethereum provider (e.g., MetaMask) not found. Please ensure your wallet is connected.");
+        setIsDecryptingUserDetails(false);
+        addNotification("Wallet connection error", "error");
+        return;
+      }
+      
+      console.log("Using wallet address for signing:", signingWalletClient.account.address);
+      console.log("Using dapp address:", rampAddress);
+      
+      // Validate that kycData is a valid hex string
+      let resultHandle: Hex;
+      try {
+        // Check if kycData is a valid hex string and make it a proper Hex type
+        const hexPattern = /^0x[0-9a-fA-F]+$/;
+        if (hexPattern.test(detailedUser.kycData)) {
+          resultHandle = detailedUser.kycData as Hex;
+        } else {
+          throw new Error("Invalid KYC data format - not a valid hexadecimal string");
+        }
+        console.log("Result handle for decryption:", resultHandle);
+      } catch (hexError) {
+        console.error("Error processing KYC data:", hexError);
+        throw new Error("Invalid KYC data format");
+      }
+      
+      try {
+        // Get reencryptor using the signing-capable walletClient
+        const reencryptor = await zap.getReencryptor(signingWalletClient);
+        console.log("Reencryptor obtained successfully");
+        
+        const resultPlaintext = await reencryptor({ handle: resultHandle });
+        console.log("Decryption complete");
+        
+        // Store the decrypted value
+        const decryptedValue = Number(resultPlaintext.value);
+        console.log("Decrypted value:", decryptedValue);
+        setUserDetailsDecryptedData(decryptedValue);
+        addNotification("KYC data successfully decrypted", "success");
+      } catch (innerError: any) {
+        console.error("Error during reencryption process:", innerError);
+        throw new Error(`Decryption process failed: ${innerError.message}`);
+      }
+      
+    } catch (error: any) {
+      console.error("Error requesting decryption:", error);
+      setDecryptionError("Failed to decrypt data: " + error.message);
+      addNotification("Failed to decrypt data: " + error.message, "error");
+    } finally {
+      setIsDecryptingUserDetails(false);
+    }
+  };
+
   // Add a contract read function for getting approved user data for decryption
   const { data: approvedUserForDecryption, refetch: refetchApprovedUser } = useReadContract({
     address: rampAddress as `0x${string}` | undefined,
@@ -235,6 +370,52 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
     },
   });
 
+  // Get list of approved users
+  const { data: approvedUsers } = useReadContract({
+    address: rampAddress as `0x${string}` | undefined,
+    abi: rampAbi,
+    functionName: 'getListOfApprovedUsers',
+    query: {
+      enabled: !!rampAddress && activeView === 'approved-users',
+    },
+  });
+
+  // Update approved user addresses when data changes
+  useEffect(() => {
+    if (approvedUsers && Array.isArray(approvedUsers)) {
+      setApprovedUserAddresses(approvedUsers as string[]);
+    }
+  }, [approvedUsers]);
+
+  // No need to fetch user details since we're only showing addresses and delete buttons
+
+  // Function to handle deleting a user
+  const handleDeleteUser = async (userAddress: string) => {
+    if (!rampAddress) return;
+    
+    try {
+      setIsDeletingUser(userAddress);
+      await writeContractAsync({
+        address: rampAddress as `0x${string}`,
+        abi: rampAbi,
+        functionName: 'deleteUser',
+        args: [userAddress],
+      });
+      
+      // Remove the user from the local state
+      setApprovedUserAddresses(prevAddresses => 
+        prevAddresses.filter(address => address !== userAddress)
+      );
+      
+      addNotification(`User ${userAddress} has been deleted successfully`, 'success');
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      addNotification(`Failed to delete user: ${error.message}`, 'error');
+    } finally {
+      setIsDeletingUser(null);
+    }
+  };
+  
   // Function to handle KYC data decryption request by admin
   const handleDecryptRequest = async () => {
     if (!decryptionAddress || !rampAddress || !adminAddress) {
@@ -328,8 +509,103 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
     }
   };
 
+  // ApprovedUsersManagement component for displaying and managing approved users
+  const ApprovedUsersManagement = () => {
+    return (
+      <div className="bg-white rounded-lg shadow-md">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h2 className="text-xl font-semibold text-gray-800">Approved Users Management</h2>
+          <button
+            onClick={() => handleViewChange('dashboard')}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+        
+        <div className="p-4">
+          {approvedUserAddresses.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No approved users found</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-gray-600 mb-2">Total Approved Users: {approvedUserAddresses.length}</p>
+              
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        User Address
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {approvedUserAddresses.map((userAddress) => {
+                      const isDeleting = isDeletingUser === userAddress;
+                      
+                      return (
+                        <tr key={userAddress} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 break-all">
+                            {userAddress}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                            <button
+                              onClick={() => handleDeleteUser(userAddress)}
+                              disabled={isDeleting}
+                              className={`px-3 py-1 text-sm rounded ${
+                                isDeleting
+                                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                  : "bg-red-100 text-red-700 hover:bg-red-200"
+                              } transition-colors`}
+                            >
+                              {isDeleting ? "Deleting..." : "Delete User"}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Notifications */}
+      <div className="fixed top-4 right-4 z-50 w-80">
+        {notifications.map(notification => (
+          <div 
+            key={notification.id} 
+            className={`mb-2 p-4 rounded-lg shadow-md text-sm flex justify-between items-center ${
+              notification.type === 'success' 
+                ? 'bg-green-50 text-green-800' 
+                : notification.type === 'error' 
+                  ? 'bg-red-50 text-red-800' 
+                  : 'bg-blue-50 text-blue-800'
+            }`}
+          >
+            <div>{notification.message}</div>
+            <button 
+              onClick={() => setNotifications(notifications.filter(n => n.id !== notification.id))} 
+              className="ml-2 text-gray-500 hover:text-gray-700"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Content based on active view */}
       {activeView === 'tokens' && (
         <TokenManagement 
           onBack={() => handleViewChange('dashboard')} 
@@ -342,6 +618,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
           onBack={() => handleViewChange('dashboard')} 
           addNotification={addNotification} 
         />
+      )}
+      
+      {activeView === 'approved-users' && (
+        <ApprovedUsersManagement />
       )}
       
       {activeView === 'dashboard' && (
@@ -379,6 +659,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
                         onClick={() => handleViewChange('tokens')}
                       >
                         Manage Supported Tokens
+                      </button>
+                      <button 
+                        className="w-full py-1.5 px-3 text-sm bg-indigo-100 text-indigo-800 rounded hover:bg-indigo-200 transition-colors duration-200"
+                        onClick={() => handleViewChange('approved-users')}
+                      >
+                        Manage Approved Users
                       </button>
                       <button 
                         className="w-full py-1.5 px-3 text-sm bg-indigo-100 text-indigo-800 rounded hover:bg-indigo-200 transition-colors duration-200"
@@ -520,13 +806,47 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
                       <p className="font-medium break-all">{detailedUser.userAddress}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">KYC Data (Encrypted)</p>
-                      <div className="bg-gray-100 p-3 rounded-md overflow-auto max-h-40">
-                        <pre className="text-xs">{detailedUser.kycData}</pre>
+                      <div className="flex justify-between items-center">
+                        <p className="text-sm text-gray-500">KYC Data (Encrypted)</p>
+                        <button
+                          onClick={handleDecryptUserDetails}
+                          disabled={isDecryptingUserDetails}
+                          className={`text-sm px-3 py-1 rounded ${
+                            isDecryptingUserDetails 
+                              ? 'bg-gray-300 text-gray-600' 
+                              : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                          }`}
+                        >
+                          {isDecryptingUserDetails ? 'Decrypting...' : 'Request Decryption'}
+                        </button>
                       </div>
+                      
+                      {userDetailsDecryptedData !== null ? (
+                        <div className="mt-2 mb-2">
+                          <div className="bg-green-50 p-3 rounded-md border border-green-200">
+                            <p className="text-sm font-medium text-green-700 mb-1">Decrypted KYC Document Number:</p>
+                            <p className="text-lg font-mono bg-white p-2 rounded break-all">{userDetailsDecryptedData}</p>
+                          </div>
+                          <button 
+                            onClick={() => setUserDetailsDecryptedData(null)} 
+                            className="mt-2 text-xs text-purple-600 hover:text-purple-800"
+                          >
+                            Hide decrypted data
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-100 p-3 rounded-md overflow-auto max-h-40">
+                          <pre className="text-xs">{detailedUser.kycData}</pre>
+                        </div>
+                      )}
+                      
                       <p className="text-xs text-gray-500 mt-2">
-                        * This data is encrypted on-chain. Only the user can request decryption.
+                        * This data is encrypted on-chain. Admin can decrypt it when legally required.
                       </p>
+                      
+                      {decryptionError && (
+                        <div className="mt-2 text-sm text-red-500">{decryptionError}</div>
+                      )}
                     </div>
                     
                     <div className="flex space-x-3 pt-3">
@@ -676,34 +996,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
           </div>
         </>
       )}
-      
-      {/* Notifications Toasts */}
-      <div className="fixed top-4 right-4 z-50">
-        {notifications.map(notification => (
-          <div 
-            key={notification.id} 
-            className={`mb-2 p-4 rounded-lg shadow-md text-sm flex justify-between items-center ${
-              notification.type === 'success' 
-                ? 'bg-green-50 text-green-800' 
-                : notification.type === 'error' 
-                  ? 'bg-red-50 text-red-800' 
-                  : 'bg-blue-50 text-blue-800'
-            }`}
-          >
-            <div>
-              {notification.message}
-            </div>
-            <button 
-              onClick={() => setNotifications(notifications.filter(n => n.id !== notification.id))}
-              className="ml-3 text-gray-500 hover:text-gray-700"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        ))}
-      </div>
     </div>
   );
 };
