@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useAccount, useChainId, useReadContract, useWriteContract } from 'wagmi';
 import { chainsToRamp, rampAbi } from '../constants';
-import { encodeAbiParameters, parseAbiParameters } from 'viem';
+import { Hex } from 'viem';
 import { useRouter } from 'next/navigation';
 import { getViemChain, supportedChains } from '@inco/js';
 import { Lightning } from '@inco/js/lite'
-import { createWalletClient, http } from 'viem';
+import { createWalletClient, http, custom } from 'viem';
+
+// Add type declaration for window.ethereum
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
 
 // Types for the form data
 interface FormData {
@@ -59,6 +66,16 @@ const UserRegistration: React.FC = () => {
   
   // Get ramp address for current chain
   const rampAddress = chainsToRamp[chainId]?.ramp;
+  
+  // Read owner address from contract - proper way to use the hook at component level
+  const { data: ownerAddress } = useReadContract({
+    address: rampAddress as `0x${string}` | undefined,
+    abi: rampAbi,
+    functionName: 'owner',
+    query: {
+      enabled: isConnected && !!rampAddress,
+    },
+  }) as { data: Hex | undefined };
   
   // Read pending user data from contract
   const { data: pendingUserData, isPending: isPendingLoading, refetch: refetchPendingUser } = useReadContract({
@@ -158,16 +175,15 @@ const UserRegistration: React.FC = () => {
       const zap = Lightning.latest('testnet', chainIdForInco);
       console.log("Lightning instance created");
       
-      // Create wallet client for Inco
+      // Create wallet client for Inco using connected wallet
+      // Using the ownerAddress from the component-level hook
       const walletClient = createWalletClient({
+        account: (ownerAddress || userAddress) as Hex,
         chain: getViemChain(chainIdForInco),
-        account: "0x792b89393cA2eC17797ff6C4D17a397ffe0f4AB6",
-        transport: http('https://chain-proxy.wallet.coinbase.com?targetName=base-sepolia'),
+        transport: window.ethereum ? custom(window.ethereum) : http(),
       });
-
-      // For debugging
+      
       console.log("Using wallet address:", walletClient.account.address);
-      console.log("Using dapp address:", rampAddress);
       
       // Variable to store the ciphertext (declare it outside try-catch)
       let ciphertext: string;
@@ -350,27 +366,6 @@ const UserRegistration: React.FC = () => {
             </button>
           </form>
 
-          {/* Encryption Test Display */}
-          <div className="mt-8 p-4 border border-gray-300 rounded-lg">
-            <h2 className="text-lg font-semibold mb-2">Encryption Test</h2>
-            
-            <div className="mb-4">
-              <h3 className="text-sm font-medium mb-1">Plaintext:</h3>
-              <div className="bg-gray-100 p-2 rounded overflow-auto max-h-40 text-xs">
-                <pre>{plainTextKyc}</pre>
-              </div>
-            </div>
-            
-            <div>
-              <h3 className="text-sm font-medium mb-1">Ciphertext:</h3>
-              <div className="bg-gray-100 p-2 rounded overflow-auto max-h-40 text-xs break-all">
-                {cipherTextKyc ? 
-                  <pre>{cipherTextKyc}</pre> : 
-                  <span className="text-gray-500">Will be generated when you submit the form</span>
-                }
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     );
