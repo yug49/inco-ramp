@@ -288,17 +288,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
       const zap = Lightning.latest('testnet', chainIdForInco);
       console.log("Lightning instance created for user details decryption");
 
-      // The account for which data was encrypted and which must authorize decryption.
-      const targetDecryptionAccount = "0x792b89393cA2eC17797ff6C4D17a397ffe0f4AB6";
-
-      // Ensure the connected admin is the one authorized to decrypt.
-      if (adminAddress?.toLowerCase() !== targetDecryptionAccount.toLowerCase()) {
-        setDecryptionError(`Decryption can only be performed by the account ${targetDecryptionAccount}. You are connected as ${adminAddress}. Please switch accounts in your wallet.`);
-        setIsDecryptingUserDetails(false);
-        addNotification(`Authentication error: Connect with account ${targetDecryptionAccount.substring(0, 6)}...${targetDecryptionAccount.substring(targetDecryptionAccount.length - 4)}`, "error");
-        return;
-      }
-
       let signingWalletClient;
       if (typeof window !== "undefined" && window.ethereum) {
         signingWalletClient = createWalletClient({
@@ -451,16 +440,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
       // Create a Lightning instance - use Lightning.latest pattern to avoid parsing errors
       const zap = Lightning.latest('testnet', chainIdForInco);
       console.log("Lightning instance created");
-
-      // The account for which data was encrypted and which must authorize decryption.
-      const targetDecryptionAccount = "0x792b89393cA2eC17797ff6C4D17a397ffe0f4AB6";
-
-      // Ensure the connected admin is the one authorized to decrypt.
-      if (adminAddress?.toLowerCase() !== targetDecryptionAccount.toLowerCase()) {
-        setDecryptionError(`Decryption can only be performed by the account ${targetDecryptionAccount}. You are connected as ${adminAddress}. Please switch accounts in your wallet.`);
-        setIsDecrypting(false);
-        return;
-      }
 
       let signingWalletClient;
       if (typeof window !== "undefined" && window.ethereum) {

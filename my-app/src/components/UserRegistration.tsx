@@ -20,7 +20,7 @@ interface FormData {
   phoneNumber: string;
   dob: string;
   address: string;
-  kycDocumentType: 'PAN' | 'AADHAR' | 'PASSPORT';
+  kycDocumentType: 'AADHAR';
   kycDocumentNumber: number ;
 }
 
@@ -52,7 +52,7 @@ const UserRegistration: React.FC = () => {
     phoneNumber: '',
     dob: '',
     address: '',
-    kycDocumentType: 'PAN',
+    kycDocumentType: 'AADHAR',
     kycDocumentNumber: 0,
   });
 
@@ -336,10 +336,9 @@ const UserRegistration: React.FC = () => {
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded"
                 required
+                disabled
               >
-                <option value="PAN">PAN Card (Recommended)</option>
                 <option value="AADHAR">Aadhar Card</option>
-                <option value="PASSPORT">Passport</option>
               </select>
             </div>
             
