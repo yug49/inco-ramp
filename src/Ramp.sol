@@ -43,19 +43,9 @@ contract Ramp is Ownable {
      * @param userAddress The address of the user.
      * @param kycData The KYC data of the user in encrypted format leveraging inco confidentiality layer
      */
-    struct PendingUser {
+    struct User {
         address userAddress;
-        bytes kycData; //encrypted KYC data
-    }
-
-    /**
-     * @dev Struct to represent a approved user.
-     * @param userAddress The address of the user.
-     * @param kycData The KYC data of the user in encrypted format leveraging inco confidentiality layer
-     */
-    struct ApprovedUser {
-        address userAddress;
-        euint256 kycData;
+        euint256 kycData; //encrypted KYC data
     }
 
     /**
@@ -72,7 +62,7 @@ contract Ramp is Ownable {
      */
     struct Order {
         uint256 id;
-        ApprovedUser user;
+        User user;
         uint256 amountOfFiatInUsd; // Amount of fiat in usd
         uint256 amountOfToken; // Amount of token to buy/sell
         string fiat;
@@ -82,8 +72,8 @@ contract Ramp is Ownable {
         uint256 timestamp;
     }
 
-    mapping(address => PendingUser) private pendingUsers; // Mapping of user address to PendingUser struct
-    mapping(address => ApprovedUser) private approvedUsers; // Mapping of user address to ApprovedUser struct
+    mapping(address => User) private pendingUsers; // Mapping of user address to User struct
+    mapping(address => User) private approvedUsers; // Mapping of user address to User struct
     address[] private listOfPendingUsers; // Array of user addresses that are pending for registration approval
     address[] private listOfApprovedUsers; // Array of user addresses that are approved
 
@@ -208,7 +198,8 @@ contract Ramp is Ownable {
         if (approvedUsers[userAddress].userAddress != address(0)) revert Ramp__UserAlreadyRegistered();
         if (pendingUsers[userAddress].userAddress != address(0)) revert Ramp__UserRegistrationRequestesStillPending();
 
-        pendingUsers[userAddress] = PendingUser(userAddress, kycData);
+        pendingUsers[userAddress] = User(userAddress, kycData.newEuint256(msg.sender));
+        pendingUsers[userAddress].kycData.allow(owner());
         listOfPendingUsers.push(userAddress);
     }
 
@@ -221,10 +212,8 @@ contract Ramp is Ownable {
         if (pendingUsers[userAddress].userAddress == address(0)) revert Ramp__UserRegistrationRequestNotFound();
 
         approvedUsers[userAddress] =
-            ApprovedUser(userAddress, pendingUsers[userAddress].kycData.newEuint256(msg.sender));
+            User(userAddress, pendingUsers[userAddress].kycData);
         listOfApprovedUsers.push(userAddress);
-
-        approvedUsers[userAddress].kycData.allow(userAddress); // allow the user to see its own KYC data
 
         delete pendingUsers[userAddress];
         for (uint256 i = 0; i < listOfPendingUsers.length; i++) {
@@ -434,11 +423,11 @@ contract Ramp is Ownable {
 
     /* Getter Functions */
 
-    function getApprovedUser(address userAddress) public view returns (ApprovedUser memory) {
+    function getApprovedUser(address userAddress) public view returns (User memory) {
         return approvedUsers[userAddress];
     }
 
-    function getPendingUser(address userAddress) public view returns (PendingUser memory) {
+    function getPendingUser(address userAddress) public view returns (User memory) {
         return pendingUsers[userAddress];
     }
 
