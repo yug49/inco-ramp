@@ -23,6 +23,39 @@ interface NotificationProps {
   id: number;
 }
 
+// Interface for token details
+interface TokenInfo {
+  address: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+}
+
+// ERC20 ABI for fetching token names, symbols, and decimals
+const erc20Abi = [
+  {
+    "inputs": [],
+    "name": "name",
+    "outputs": [{ "internalType": "string", "name": "", "type": "string" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "symbol",
+    "outputs": [{ "internalType": "string", "name": "", "type": "string" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "decimals",
+    "outputs": [{ "internalType": "uint8", "name": "", "type": "uint8" }],
+    "stateMutability": "view",
+    "type": "function"
+  }
+] as const;
+
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
   console.log("AdminDashboard component rendering with pendingUsers:", pendingUsers);
   
@@ -49,6 +82,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
   const [isDeletingUser, setIsDeletingUser] = useState<string | null>(null);
   const [isDecryptingUserDetails, setIsDecryptingUserDetails] = useState(false);
   const [userDetailsDecryptedData, setUserDetailsDecryptedData] = useState<number | null>(null);
+  
+  // Token details state management
+  const [tokenDetails, setTokenDetails] = useState<TokenInfo[]>([]);
+  const [isLoadingTokenDetails, setIsLoadingTokenDetails] = useState<boolean>(false);
   
   // Add notification handler
   const addNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -104,12 +141,203 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
     },
   });
   
+  // Get supported tokens from contract
+  const { data: supportedTokens } = useReadContract({
+    address: rampAddress as `0x${string}` | undefined,
+    abi: rampAbi,
+    functionName: 'getSupportedTokens',
+    query: {
+      enabled: !!rampAddress,
+    },
+  });
+  
   // Update orders when data changes
   useEffect(() => {
     if (orders && Array.isArray(orders)) {
       setAllOrders(orders);
     }
   }, [orders]);
+  
+  // Fetch token details when supported tokens change
+  useEffect(() => {
+    const fetchTokenDetails = async () => {
+      if (!supportedTokens || !Array.isArray(supportedTokens) || supportedTokens.length === 0) return;
+      
+      setIsLoadingTokenDetails(true);
+      setTokenDetails([]);
+      
+      try {
+        const tokenInfo: TokenInfo[] = [];
+        
+        // Process each token one by one
+        for (const tokenAddress of supportedTokens) {
+          try {
+            // Check if window.ethereum is available
+            if (!window.ethereum) {
+              throw new Error("Ethereum provider not available");
+            }
+            
+            // Read name using direct contract read
+            const nameResult = await window.ethereum.request({
+              method: 'eth_call',
+              params: [
+                {
+                  to: tokenAddress,
+                  data: '0x06fdde03', // Function signature for name()
+                },
+                'latest',
+              ],
+            });
+            
+            // Read symbol using direct contract read
+            const symbolResult = await window.ethereum.request({
+              method: 'eth_call',
+              params: [
+                {
+                  to: tokenAddress,
+                  data: '0x95d89b41', // Function signature for symbol()
+                },
+                'latest',
+              ],
+            });
+            
+            // Read decimals using direct contract read
+            const decimalsResult = await window.ethereum.request({
+              method: 'eth_call',
+              params: [
+                {
+                  to: tokenAddress,
+                  data: '0x313ce567', // Function signature for decimals()
+                },
+                'latest',
+              ],
+            });
+            
+            // Decode the hex strings to get readable names/symbols
+            const decodeHexString = (hex: string): string => {
+              try {
+                if (!hex || hex === '0x') return 'Unknown';
+                
+                // Remove 0x prefix
+                const cleanHex = hex.slice(2);
+                
+                // The first 64 characters (32 bytes) are the offset
+                // The next 64 characters (32 bytes) are the length
+                // The remaining characters are the actual string data
+                
+                if (cleanHex.length < 128) return 'Unknown';
+                
+                const lengthHex = cleanHex.slice(64, 128);
+                const length = parseInt(lengthHex, 16);
+                
+                if (length === 0) return 'Unknown';
+                
+                const dataHex = cleanHex.slice(128, 128 + (length * 2));
+                
+                // Convert hex to string
+                let result = '';
+                for (let i = 0; i < dataHex.length; i += 2) {
+                  const byte = parseInt(dataHex.substr(i, 2), 16);
+                  if (byte !== 0) { // Skip null bytes
+                    result += String.fromCharCode(byte);
+                  }
+                }
+                
+                return result || 'Unknown';
+              } catch (error) {
+                console.error('Error decoding hex string:', error);
+                return 'Unknown';
+              }
+            };
+            
+            // Add token info to the list
+            tokenInfo.push({
+              address: tokenAddress,
+              name: nameResult ? decodeHexString(nameResult) : 'Unknown',
+              symbol: symbolResult ? decodeHexString(symbolResult) : '???',
+              decimals: decimalsResult ? parseInt(decimalsResult, 16) : 18, // Default to 18 if decimals not available
+            });
+          } catch (error) {
+            console.error(`Error fetching details for token ${tokenAddress}:`, error);
+            tokenInfo.push({
+              address: tokenAddress,
+              name: 'Unknown',
+              symbol: '???',
+              decimals: 18, // Default to 18 decimals for unknown tokens
+            });
+          }
+        }
+        
+        setTokenDetails(tokenInfo);
+      } catch (error) {
+        console.error('Error fetching token details:', error);
+      } finally {
+        setIsLoadingTokenDetails(false);
+      }
+    };
+    
+    fetchTokenDetails();
+  }, [supportedTokens]);
+  
+  // Helper function to get token label from address
+  const getTokenLabel = (tokenAddress: string): string => {
+    if (!tokenAddress) {
+      return 'Unknown Token';
+    }
+    
+    const token = tokenDetails.find(t => t.address.toLowerCase() === tokenAddress.toLowerCase());
+    
+    if (token && token.symbol) {
+      return token.symbol;
+    }
+    // Fallback to last 6 characters of address if symbol not found
+    return `${tokenAddress.slice(0, 6)}...${tokenAddress.slice(-4)}`;
+  };
+
+  // Helper function to format token amounts with proper decimals
+  const formatTokenAmount = (amount: string | number, tokenAddress: string): string => {
+    if (!tokenAddress || !amount) return '0';
+    
+    const token = tokenDetails.find(t => t.address.toLowerCase() === tokenAddress.toLowerCase());
+    const decimals = token?.decimals || 18;
+    
+    // Convert the raw amount to a proper decimal representation
+    const rawAmount = BigInt(amount.toString());
+    const divisor = BigInt(10 ** decimals);
+    const integerPart = rawAmount / divisor;
+    const fractionalPart = rawAmount % divisor;
+    
+    // Format with up to 6 decimal places for display
+    const fractionalStr = fractionalPart.toString().padStart(decimals, '0');
+    const truncatedFractional = fractionalStr.substring(0, 6).replace(/0+$/, '');
+    
+    if (truncatedFractional === '') {
+      return integerPart.toString();
+    }
+    
+    return `${integerPart.toString()}.${truncatedFractional}`;
+  };
+
+  // Helper function to format fiat amounts (divide by 1e18)
+  const formatFiatAmount = (amount: string | number): string => {
+    if (!amount) return '0';
+    
+    // Convert to BigInt for precise calculation
+    const rawAmount = BigInt(amount.toString());
+    const divisor = BigInt(10 ** 18); // 1e18
+    const integerPart = rawAmount / divisor;
+    const fractionalPart = rawAmount % divisor;
+    
+    // Format with up to 2 decimal places for fiat
+    const fractionalStr = fractionalPart.toString().padStart(18, '0');
+    const truncatedFractional = fractionalStr.substring(0, 2).replace(/0+$/, '');
+    
+    if (truncatedFractional === '') {
+      return integerPart.toString();
+    }
+    
+    return `${integerPart.toString()}.${truncatedFractional}`;
+  };
   
   // Function to handle fulfilling an order
   const handleFulfillOrder = async (orderId: number) => {
@@ -491,56 +719,56 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
   // ApprovedUsersManagement component for displaying and managing approved users
   const ApprovedUsersManagement = () => {
     return (
-      <div className="bg-white rounded-lg shadow-md">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-semibold text-gray-800">Approved Users Management</h2>
+      <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700">
+        <div className="flex items-center justify-between p-6 border-b border-slate-700">
+          <h2 className="text-xl font-semibold text-slate-200">Approved Users Management</h2>
           <button
             onClick={() => handleViewChange('dashboard')}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+            className="px-4 py-2 bg-slate-700 text-slate-200 rounded-lg hover:bg-slate-600 transition-colors duration-200"
           >
             Back to Dashboard
           </button>
         </div>
         
-        <div className="p-4">
+        <div className="p-6">
           {approvedUserAddresses.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">No approved users found</p>
+              <p className="text-slate-400">No approved users found</p>
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-gray-600 mb-2">Total Approved Users: {approvedUserAddresses.length}</p>
+              <p className="text-slate-300 mb-2">Total Approved Users: {approvedUserAddresses.length}</p>
               
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-slate-700">
+                  <thead className="bg-slate-800/50">
                     <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                         User Address
                       </th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-slate-300 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-slate-900/20 divide-y divide-slate-700">
                     {approvedUserAddresses.map((userAddress) => {
                       const isDeleting = isDeletingUser === userAddress;
                       
                       return (
-                        <tr key={userAddress} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 break-all">
+                        <tr key={userAddress} className="hover:bg-slate-800/30 transition-colors duration-200">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-200 break-all">
                             {userAddress}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                             <button
                               onClick={() => handleDeleteUser(userAddress)}
                               disabled={isDeleting}
-                              className={`px-3 py-1 text-sm rounded ${
+                              className={`px-3 py-1 text-sm rounded-lg transition-all duration-200 ${
                                 isDeleting
-                                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                  : "bg-red-100 text-red-700 hover:bg-red-200"
-                              } transition-colors`}
+                                  ? "bg-slate-600 text-slate-400 cursor-not-allowed"
+                                  : "bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300 border border-red-500/30"
+                              }`}
                             >
                               {isDeleting ? "Deleting..." : "Delete User"}
                             </button>
@@ -565,18 +793,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
         {notifications.map(notification => (
           <div 
             key={notification.id} 
-            className={`mb-2 p-4 rounded-lg shadow-md text-sm flex justify-between items-center ${
+            className={`mb-2 p-4 rounded-xl shadow-lg text-sm flex justify-between items-center backdrop-blur-sm transition-all duration-300 border ${
               notification.type === 'success' 
-                ? 'bg-green-50 text-green-800' 
+                ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' 
                 : notification.type === 'error' 
-                  ? 'bg-red-50 text-red-800' 
-                  : 'bg-blue-50 text-blue-800'
+                  ? 'bg-red-500/10 text-red-300 border-red-500/30' 
+                  : 'bg-blue-500/10 text-blue-300 border-blue-500/30'
             }`}
           >
             <div>{notification.message}</div>
             <button 
               onClick={() => setNotifications(notifications.filter(n => n.id !== notification.id))} 
-              className="ml-2 text-gray-500 hover:text-gray-700"
+              className="ml-2 text-slate-400 hover:text-slate-200 transition-colors duration-200"
             >
               ×
             </button>
@@ -605,48 +833,48 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
       
       {activeView === 'dashboard' && (
         <>
-          <h1 className="text-3xl font-bold mb-8 text-center">Admin Dashboard</h1>
+          <h1 className="text-3xl font-bold mb-8 text-center bg-gradient-to-r from-emerald-400 to-blue-500 bg-clip-text text-transparent">Admin Dashboard</h1>
           
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Sidebar with admin info */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-semibold mb-4">Admin Controls</h2>
+              <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700 p-6">
+                <h2 className="text-xl font-semibold mb-4 text-slate-200">Admin Controls</h2>
                 <div className="space-y-4">
-                  <div className="py-2 px-4 bg-blue-50 rounded-lg">
-                    <h3 className="font-medium mb-1">Pending Approvals</h3>
-                    <p className="text-sm text-gray-600">
+                  <div className="py-3 px-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                    <h3 className="font-medium mb-1 text-blue-300">Pending Approvals</h3>
+                    <p className="text-sm text-slate-400">
                       {pendingUsers ? pendingUsers.length : 0} users waiting for approval
                     </p>
                   </div>
                   
-                  <div className="py-2 px-4 bg-green-50 rounded-lg">
-                    <h3 className="font-medium mb-1">Orders Overview</h3>
-                    <p className="text-sm text-gray-600">
+                  <div className="py-3 px-4 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                    <h3 className="font-medium mb-1 text-emerald-300">Orders Overview</h3>
+                    <p className="text-sm text-slate-400">
                       Total Orders: {allOrders.length || 0}
                     </p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-slate-400">
                       Pending Fulfillment: {allOrders.filter(order => !order.fulfilled).length || 0}
                     </p>
                   </div>
                   
-                  <div className="py-2 px-4 bg-indigo-50 rounded-lg">
-                    <h3 className="font-medium mb-1">Quick Actions</h3>
+                  <div className="py-3 px-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                    <h3 className="font-medium mb-1 text-purple-300">Quick Actions</h3>
                     <div className="space-y-2 mt-2">
                       <button 
-                        className="w-full py-1.5 px-3 text-sm bg-indigo-100 text-indigo-800 rounded hover:bg-indigo-200 transition-colors duration-200"
+                        className="w-full py-2 px-3 text-sm bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 font-medium"
                         onClick={() => handleViewChange('tokens')}
                       >
                         Manage Supported Tokens
                       </button>
                       <button 
-                        className="w-full py-1.5 px-3 text-sm bg-indigo-100 text-indigo-800 rounded hover:bg-indigo-200 transition-colors duration-200"
+                        className="w-full py-2 px-3 text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium"
                         onClick={() => handleViewChange('approved-users')}
                       >
                         Manage Approved Users
                       </button>
                       <button 
-                        className="w-full py-1.5 px-3 text-sm bg-indigo-100 text-indigo-800 rounded hover:bg-indigo-200 transition-colors duration-200"
+                        className="w-full py-2 px-3 text-sm bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 font-medium"
                         onClick={() => handleViewChange('fiat')}
                       >
                         Manage Fiat Currencies
@@ -655,19 +883,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
                   </div>
                   
                   {/* KYC Data Decryption Request Section */}
-                  <div className="py-2 px-4 bg-purple-50 rounded-lg">
-                    <h3 className="font-medium mb-3">Request KYC Decryption</h3>
-                    <p className="text-xs text-gray-600 mb-3">
+                  <div className="py-3 px-4 bg-orange-500/10 rounded-lg border border-orange-500/20">
+                    <h3 className="font-medium mb-3 text-orange-300">Request KYC Decryption</h3>
+                    <p className="text-xs text-slate-400 mb-3">
                       Enter a user address to request decryption of their KYC data. This should only be used when legally required.
                     </p>
                     <div className="space-y-3">
                       {decryptedData !== null ? (
-                        <div className="bg-white p-4 rounded">
-                          <p className="text-sm font-medium mb-1">Decrypted KYC Document Number:</p>
-                          <p className="text-lg font-mono bg-gray-50 p-2 rounded break-all">{decryptedData}</p>
+                        <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-600">
+                          <p className="text-sm font-medium mb-1 text-slate-300">Decrypted KYC Document Number:</p>
+                          <p className="text-lg font-mono bg-slate-700/50 p-2 rounded border border-slate-600 break-all text-emerald-300">{decryptedData}</p>
                           <button 
                             onClick={() => setDecryptedData(null)} 
-                            className="mt-3 text-sm text-purple-600 hover:text-purple-800 underline"
+                            className="mt-3 text-sm text-orange-400 hover:text-orange-300 underline transition-colors duration-200"
                           >
                             Decrypt another
                           </button>
@@ -679,15 +907,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
                             value={decryptionAddress}
                             onChange={(e) => setDecryptionAddress(e.target.value)}
                             placeholder="User Address (0x...)"
-                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            className="w-full px-3 py-2 text-sm bg-slate-800/50 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
                           />
                           <button
                             onClick={handleDecryptRequest}
                             disabled={!decryptionAddress || isDecrypting}
-                            className={`w-full py-1.5 px-3 text-sm font-medium rounded text-white ${
+                            className={`w-full py-2 px-3 text-sm font-medium rounded-lg transition-all duration-200 ${
                               !decryptionAddress || isDecrypting
-                                ? 'bg-gray-400'
-                                : 'bg-purple-600 hover:bg-purple-700'
+                                ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700'
                             }`}
                           >
                             {isDecrypting ? 'Processing...' : 'Request Decryption'}
@@ -696,7 +924,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
                       )}
                       
                       {decryptionError && (
-                        <div className="text-sm text-red-500 mt-2">{decryptionError}</div>
+                        <div className="text-sm text-red-400 mt-2 bg-red-500/10 p-2 rounded border border-red-500/20">{decryptionError}</div>
                       )}
                     </div>
                   </div>
@@ -707,46 +935,46 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
             {/* Main dashboard area */}
             <div className="lg:col-span-3">
               {/* Pending User Approvals */}
-              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 className="text-xl font-semibold mb-4">Pending User Registrations</h2>
+              <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700 p-6 mb-6">
+                <h2 className="text-xl font-semibold mb-4 text-slate-200">Pending User Registrations</h2>
                 
                 {pendingUsers && pendingUsers.length > 0 ? (
                   <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                    <table className="min-w-full divide-y divide-slate-700">
+                      <thead className="bg-slate-800/50">
                         <tr>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                             User Address
                           </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                             Actions
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
+                      <tbody className="bg-slate-900/20 divide-y divide-slate-700">
                         {pendingUsers.map((userAddress) => (
-                          <tr key={userAddress} className={`${selectedUser === userAddress ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <tr key={userAddress} className={`transition-colors duration-200 ${selectedUser === userAddress ? 'bg-blue-500/20' : 'hover:bg-slate-800/30'}`}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-200">
                               {`${userAddress.substring(0, 6)}...${userAddress.substring(userAddress.length - 4)}`}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 space-x-3">
                               <button
                                 onClick={() => handleViewUserDetails(userAddress)}
-                                className="text-blue-600 hover:text-blue-900 mr-3"
+                                className="text-blue-400 hover:text-blue-300 font-medium transition-colors duration-200"
                               >
                                 View Details
                               </button>
                               <button
                                 onClick={() => handleApproveUser(userAddress)}
                                 disabled={isApproving}
-                                className="text-green-600 hover:text-green-900 mr-3"
+                                className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-200"
                               >
                                 {isApproving && selectedUser === userAddress ? 'Approving...' : 'Approve'}
                               </button>
                               <button
                                 onClick={() => handleRejectUser(userAddress)}
                                 disabled={isRejecting}
-                                className="text-red-600 hover:text-red-900"
+                                className="text-red-400 hover:text-red-300 font-medium transition-colors duration-200"
                               >
                                 {isRejecting && selectedUser === userAddress ? 'Rejecting...' : 'Reject'}
                               </button>
@@ -757,7 +985,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
                     </table>
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-slate-400">
                     No pending user registrations found
                   </div>
                 )}
@@ -765,15 +993,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
               
               {/* User Details Section */}
               {selectedUser && detailedUser && (
-                <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700 p-6">
                   <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold">User Details</h2>
+                    <h2 className="text-xl font-semibold text-slate-200">User Details</h2>
                     <button 
                       onClick={() => {
                         setSelectedUser(null);
                         setDetailedUser(null);
                       }}
-                      className="text-gray-500 hover:text-gray-700"
+                      className="text-slate-400 hover:text-slate-200 transition-colors duration-200"
                     >
                       Close
                     </button>
@@ -781,19 +1009,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
                   
                   <div className="space-y-4">
                     <div>
-                      <p className="text-sm text-gray-500">User Address</p>
-                      <p className="font-medium break-all">{detailedUser.userAddress}</p>
+                      <p className="text-sm text-slate-400">User Address</p>
+                      <p className="font-medium break-all text-slate-200">{detailedUser.userAddress}</p>
                     </div>
                     <div>
                       <div className="flex justify-between items-center">
-                        <p className="text-sm text-gray-500">KYC Data (Encrypted)</p>
+                        <p className="text-sm text-slate-400">KYC Data (Encrypted)</p>
                         <button
                           onClick={handleDecryptUserDetails}
                           disabled={isDecryptingUserDetails}
-                          className={`text-sm px-3 py-1 rounded ${
+                          className={`text-sm px-3 py-1 rounded-lg transition-all duration-200 ${
                             isDecryptingUserDetails 
-                              ? 'bg-gray-300 text-gray-600' 
-                              : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                              ? 'bg-slate-600 text-slate-400 cursor-not-allowed' 
+                              : 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 border border-purple-500/30'
                           }`}
                         >
                           {isDecryptingUserDetails ? 'Decrypting...' : 'Request Decryption'}
@@ -802,29 +1030,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
                       
                       {userDetailsDecryptedData !== null ? (
                         <div className="mt-2 mb-2">
-                          <div className="bg-green-50 p-3 rounded-md border border-green-200">
-                            <p className="text-sm font-medium text-green-700 mb-1">Decrypted KYC Document Number:</p>
-                            <p className="text-lg font-mono bg-white p-2 rounded break-all">{userDetailsDecryptedData}</p>
+                          <div className="bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/30">
+                            <p className="text-sm font-medium text-emerald-300 mb-1">Decrypted KYC Document Number:</p>
+                            <p className="text-lg font-mono bg-slate-800/50 p-2 rounded break-all text-emerald-300">{userDetailsDecryptedData}</p>
                           </div>
                           <button 
                             onClick={() => setUserDetailsDecryptedData(null)} 
-                            className="mt-2 text-xs text-purple-600 hover:text-purple-800"
+                            className="mt-2 text-xs text-purple-400 hover:text-purple-300 transition-colors duration-200"
                           >
                             Hide decrypted data
                           </button>
                         </div>
                       ) : (
-                        <div className="bg-gray-100 p-3 rounded-md overflow-auto max-h-40">
-                          <pre className="text-xs">{detailedUser.kycData}</pre>
+                        <div className="bg-slate-800/50 p-3 rounded-lg overflow-auto max-h-40 border border-slate-600">
+                          <pre className="text-xs text-slate-300">{detailedUser.kycData}</pre>
                         </div>
                       )}
                       
-                      <p className="text-xs text-gray-500 mt-2">
+                      <p className="text-xs text-slate-500 mt-2">
                         * This data is encrypted on-chain. Admin can decrypt it when legally required.
                       </p>
                       
                       {decryptionError && (
-                        <div className="mt-2 text-sm text-red-500">{decryptionError}</div>
+                        <div className="mt-2 text-sm text-red-400 bg-red-500/10 p-2 rounded border border-red-500/20">{decryptionError}</div>
                       )}
                     </div>
                     
@@ -832,8 +1060,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
                       <button
                         onClick={() => handleApproveUser(detailedUser.userAddress)}
                         disabled={isApproving}
-                        className={`flex-1 py-2 px-4 rounded font-medium text-white ${
-                          isApproving ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'
+                        className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all duration-200 ${
+                          isApproving ? 'bg-slate-600 text-slate-400 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700'
                         }`}
                       >
                         {isApproving ? 'Approving...' : 'Approve User'}
@@ -841,8 +1069,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
                       <button
                         onClick={() => handleRejectUser(detailedUser.userAddress)}
                         disabled={isRejecting}
-                        className={`flex-1 py-2 px-4 rounded font-medium text-white ${
-                          isRejecting ? 'bg-gray-400' : 'bg-red-600 hover:bg-red-700'
+                        className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all duration-200 ${
+                          isRejecting ? 'bg-slate-600 text-slate-400 cursor-not-allowed' : 'bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700'
                         }`}
                       >
                         {isRejecting ? 'Rejecting...' : 'Reject User'}
@@ -853,26 +1081,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
               )}
               
               {/* Orders Management */}
-              <div className="bg-white rounded-lg shadow-md p-6 mt-6">
-                <h2 className="text-xl font-semibold mb-4">Orders Management</h2>
+              <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700 p-6 mt-6">
+                <h2 className="text-xl font-semibold mb-4 text-slate-200">Orders Management</h2>
                 
                 {/* Order Tabs */}
-                <div className="flex border-b border-gray-200 mb-4">
+                <div className="flex border-b border-slate-700 mb-4">
                   <button
-                    className={`pb-2 px-4 text-sm font-medium ${
+                    className={`pb-2 px-4 text-sm font-medium transition-colors duration-200 ${
                       activeOrderTab === 'pending'
-                        ? 'border-b-2 border-blue-500 text-blue-600'
-                        : 'text-gray-500 hover:text-gray-700'
+                        ? 'border-b-2 border-emerald-400 text-emerald-400'
+                        : 'text-slate-400 hover:text-slate-200'
                     }`}
                     onClick={() => setActiveOrderTab('pending')}
                   >
                     Pending Orders
                   </button>
                   <button
-                    className={`pb-2 px-4 text-sm font-medium ${
+                    className={`pb-2 px-4 text-sm font-medium transition-colors duration-200 ${
                       activeOrderTab === 'fulfilled'
-                        ? 'border-b-2 border-blue-500 text-blue-600'
-                        : 'text-gray-500 hover:text-gray-700'
+                        ? 'border-b-2 border-emerald-400 text-emerald-400'
+                        : 'text-slate-400 hover:text-slate-200'
                     }`}
                     onClick={() => setActiveOrderTab('fulfilled')}
                   >
@@ -883,32 +1111,32 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
                 {/* Orders Table */}
                 {allOrders && allOrders.length > 0 ? (
                   <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                    <table className="min-w-full divide-y divide-slate-700">
+                      <thead className="bg-slate-800/50">
                         <tr>
-                          <th scope="col" className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th scope="col" className="px-2 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                             ID
                           </th>
-                          <th scope="col" className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th scope="col" className="px-2 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                             User
                           </th>
-                          <th scope="col" className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th scope="col" className="px-2 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                             Type
                           </th>
-                          <th scope="col" className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th scope="col" className="px-2 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                             Amount
                           </th>
-                          <th scope="col" className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th scope="col" className="px-2 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                             Date
                           </th>
                           {activeOrderTab === 'pending' && (
-                            <th scope="col" className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th scope="col" className="px-2 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                               Actions
                             </th>
                           )}
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
+                      <tbody className="bg-slate-900/20 divide-y divide-slate-700">
                         {allOrders
                           .filter(order => 
                             activeOrderTab === 'pending' 
@@ -916,33 +1144,50 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
                               : order.fulfilled
                           )
                           .map((order) => (
-                            <tr key={order.id} className="hover:bg-gray-50">
-                              <td className="px-2 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            <tr key={order.id} className="hover:bg-slate-800/30 transition-colors duration-200">
+                              <td className="px-2 py-4 whitespace-nowrap text-sm font-medium text-slate-200">
                                 #{Number(order.id)}
                               </td>
-                              <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <td className="px-2 py-4 whitespace-nowrap text-sm text-slate-300">
                                 {`${order.user.userAddress.substring(0, 6)}...${order.user.userAddress.substring(order.user.userAddress.length - 4)}`}
                               </td>
-                              <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {order.isCryptoToFiat ? 'Crypto → Fiat' : 'Fiat → Crypto'}
+                              <td className="px-2 py-4 whitespace-nowrap text-sm text-slate-300">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  order.isCryptoToFiat 
+                                    ? 'bg-orange-500/20 text-orange-300' 
+                                    : 'bg-blue-500/20 text-blue-300'
+                                }`}>
+                                  {order.isCryptoToFiat ? 'Crypto → Fiat' : 'Fiat → Crypto'}
+                                </span>
                               </td>
-                              <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {order.isCryptoToFiat 
-                                  ? `${Number(order.amountOfToken)} tokens` 
-                                  : `${Number(order.amountOfFiatInUsd)} ${order.fiat}`}
+                              <td className="px-2 py-4 whitespace-nowrap text-sm text-slate-300">
+                                <div className="space-y-1">
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-xs text-slate-400">Token:</span>
+                                    <span>
+                                      {isLoadingTokenDetails
+                                        ? `${Number(order.amountOfToken)} tokens (loading...)`
+                                        : `${formatTokenAmount(order.amountOfToken, order.tokenAddress)} ${getTokenLabel(order.tokenAddress)}`}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-xs text-slate-400">Fiat:</span>
+                                    <span>${formatFiatAmount(order.amountOfFiatInUsd)} {order.fiat}</span>
+                                  </div>
+                                </div>
                               </td>
-                              <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <td className="px-2 py-4 whitespace-nowrap text-sm text-slate-300">
                                 {new Date(Number(order.timestamp) * 1000).toLocaleString()}
                               </td>
                               {activeOrderTab === 'pending' && (
-                                <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-500 space-x-2">
+                                <td className="px-2 py-4 whitespace-nowrap text-sm text-slate-300 space-x-2">
                                   <button
                                     onClick={() => handleFulfillOrder(Number(order.id))}
                                     disabled={isFulfilling === Number(order.id)}
-                                    className={`px-3 py-1 text-xs rounded ${
+                                    className={`px-3 py-1 text-xs rounded-lg transition-all duration-200 font-medium ${
                                       isFulfilling === Number(order.id)
-                                        ? 'bg-gray-300'
-                                        : 'bg-green-100 text-green-800 hover:bg-green-200'
+                                        ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+                                        : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/30'
                                     }`}
                                   >
                                     {isFulfilling === Number(order.id) ? 'Processing...' : 'Fulfill'}
@@ -950,10 +1195,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
                                   <button
                                     onClick={() => handleCancelOrder(Number(order.id))}
                                     disabled={isCancelling === Number(order.id)}
-                                    className={`px-3 py-1 text-xs rounded ${
+                                    className={`px-3 py-1 text-xs rounded-lg transition-all duration-200 font-medium ${
                                       isCancelling === Number(order.id)
-                                        ? 'bg-gray-300'
-                                        : 'bg-red-100 text-red-800 hover:bg-red-200'
+                                        ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+                                        : 'bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/30'
                                     }`}
                                   >
                                     {isCancelling === Number(order.id) ? 'Processing...' : 'Cancel'}
@@ -966,7 +1211,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
                     </table>
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-slate-400">
                     No {activeOrderTab} orders found
                   </div>
                 )}

@@ -45,23 +45,53 @@ export default function Home() {
   }, [ownerAddress, userAddress, isConnected, isOwnerAddressLoading, router]);
 
   return (
-    <main className="p-8 min-h-screen">
-      <div className="container mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-center">Inco Ramp</h1>
+    <main className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      <div className="container mx-auto px-6 py-12">
+        {/* Hero Section */}
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl mb-6">
+            <span className="text-white font-bold text-xl">IR</span>
+          </div>
+          <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-slate-200 via-emerald-400 to-slate-200 bg-clip-text text-transparent">
+            Inco Ramp
+          </h1>
+          <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            Secure, private, and compliant crypto on-ramp and off-ramp platform with built-in KYC verification
+          </p>
+        </div>
         
         {isConnected ? (
           isCheckingOwner ? (
-            <div className="flex justify-center items-center mt-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-              <span className="ml-2">Checking authorization...</span>
+            <div className="flex flex-col items-center justify-center mt-20">
+              <div className="relative">
+                <div className="w-12 h-12 border-4 border-slate-800 border-t-emerald-500 rounded-full animate-spin"></div>
+                <div className="absolute inset-0 w-12 h-12 border-4 border-transparent border-t-emerald-400 rounded-full animate-ping"></div>
+              </div>
+              <p className="mt-6 text-slate-400 font-medium">Checking authorization...</p>
             </div>
           ) : (
-            <UserRegistration />
+            <div className="max-w-4xl mx-auto">
+              <UserRegistration />
+            </div>
           )
         ) : (
-          <div className="text-center mt-12">
-            <p className="text-xl">Welcome to Inco Ramp</p>
-            <p className="mt-4">Connect your wallet to get started</p>
+          <div className="text-center mt-20">
+            <div className="max-w-md mx-auto bg-slate-900/50 backdrop-blur-sm rounded-2xl p-8 border border-slate-800">
+              <div className="w-20 h-20 bg-gradient-to-br from-slate-700 to-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg className="w-10 h-10 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-semibold text-slate-200 mb-4">
+                Welcome to Inco Ramp
+              </h2>
+              <p className="text-slate-400 mb-8 leading-relaxed">
+                Connect your wallet to start using our secure crypto on-ramp and off-ramp services
+              </p>
+              <div className="text-sm text-slate-500">
+                Supported networks and features available after connection
+              </div>
+            </div>
           </div>
         )}
       </div>

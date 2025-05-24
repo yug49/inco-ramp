@@ -568,27 +568,39 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
   return (
     <div className="min-h-screen p-4">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">User Dashboard</h1>
+        <h1 className="text-3xl font-bold mb-6 text-white">User Dashboard</h1>
         
-        <div className="bg-white shadow-lg rounded-lg overflow-hidden mb-8">
+        <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-xl overflow-hidden mb-8 glass-card">
           <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Your Information</h2>
+            <h2 className="text-xl font-semibold mb-4 text-white flex items-center gap-2">
+              <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              Your Information
+            </h2>
             
             <div className="mb-4">
-              <p className="text-gray-600 font-medium">Wallet Address:</p>
-              <p className="font-mono bg-gray-100 p-2 rounded mt-1 break-all">{userAddress}</p>
+              <p className="text-slate-300 font-medium mb-2">Wallet Address:</p>
+              <div className="font-mono bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-3 rounded-lg break-all text-emerald-400 text-sm">
+                {userAddress}
+              </div>
             </div>
             
             <div className="mt-6">
-              <h3 className="text-lg font-semibold mb-2">KYC Document Number</h3>
+              <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
+                <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                KYC Document Number
+              </h3>
               
               {decryptedData !== null ? (
-                <div className="bg-gray-100 p-4 rounded">
-                  <p className="text-xl font-mono">{decryptedData}</p>
+                <div className="bg-slate-800/50 backdrop-blur-sm border border-emerald-500/30 p-4 rounded-lg">
+                  <p className="text-xl font-mono text-emerald-400">{decryptedData}</p>
                 </div>
               ) : (
                 <div className="mb-4">
-                  <p className="text-gray-600 mb-4">
+                  <p className="text-slate-300 mb-4 leading-relaxed">
                     Your KYC document number is encrypted for security. 
                     Click the button below to decrypt and view your information.
                   </p>
@@ -596,17 +608,29 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
                   <button
                     onClick={handleDecryptData}
                     disabled={isDecrypting}
-                    className={`py-2 px-4 rounded font-medium ${
+                    className={`group relative py-3 px-6 rounded-lg font-medium transition-all duration-200 ${
                       isDecrypting
-                        ? 'bg-gray-400 text-white cursor-not-allowed'
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                        ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-700 hover:to-emerald-600 hover:shadow-lg hover:shadow-emerald-500/25 transform hover:-translate-y-0.5'
                     }`}
                   >
-                    {isDecrypting ? 'Decrypting...' : 'Decrypt KYC Data'}
+                    {isDecrypting && (
+                      <>
+                        <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-emerald-500 rounded-lg animate-pulse"></div>
+                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                      </>
+                    )}
+                    <span className="relative">
+                      {isDecrypting ? 'Decrypting...' : 'Decrypt KYC Data'}
+                    </span>
                   </button>
                   
                   {error && (
-                    <div className="mt-3 text-red-500">{error}</div>
+                    <div className="mt-3 p-3 bg-red-900/30 border border-red-500/50 rounded-lg text-red-400 text-sm">
+                      {error}
+                    </div>
                   )}
                 </div>
               )}
@@ -615,28 +639,33 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
         </div>
         
         {/* Order Creation Section */}
-        <div className="bg-white shadow-lg rounded-lg overflow-hidden mb-8">
+        <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-xl overflow-hidden mb-8 glass-card">
           <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Create New Order</h2>
+            <h2 className="text-xl font-semibold mb-4 text-white flex items-center gap-2">
+              <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Create New Order
+            </h2>
             
             {/* Tabs for Order Types */}
-            <div className="flex border-b mb-6">
+            <div className="flex border-b border-slate-700/50 mb-6">
               <button
-                className={`py-2 px-4 font-medium ${
+                className={`py-3 px-4 font-medium transition-all duration-200 ${
                   activeOrderTab === 'fiatToCrypto'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
+                    ? 'border-b-2 border-emerald-500 text-emerald-400 bg-emerald-500/10'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                } rounded-t-lg`}
                 onClick={() => handleOrderTypeChange('fiatToCrypto')}
               >
                 Buy Crypto with Fiat
               </button>
               <button
-                className={`py-2 px-4 font-medium ${
+                className={`py-3 px-4 font-medium transition-all duration-200 ${
                   activeOrderTab === 'cryptoToFiat'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
+                    ? 'border-b-2 border-emerald-500 text-emerald-400 bg-emerald-500/10'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                } rounded-t-lg`}
                 onClick={() => handleOrderTypeChange('cryptoToFiat')}
               >
                 Buy Fiat with Crypto
@@ -644,25 +673,25 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
             </div>
             
             {/* Order Form */}
-            <div className="space-y-4">
+            <div className="space-y-6">
               {activeOrderTab === 'fiatToCrypto' ? (
                 <>
                   {/* Fiat to Crypto Form */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-gray-700 mb-2">Fiat Amount</label>
+                      <label className="block text-slate-300 mb-2 font-medium">Fiat Amount</label>
                       <div className="relative">
                         <input
                           type="number"
-                          className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full p-3 bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all duration-200"
                           placeholder="Enter amount"
                           value={fiatAmount}
                           onChange={(e) => setFiatAmount(e.target.value)}
                         />
-                        {isLoadingRates && <p className="text-sm text-gray-500 mt-1">Loading exchange rates...</p>}
-                        {rateError && <p className="text-sm text-red-500 mt-1">{rateError}</p>}
+                        {isLoadingRates && <p className="text-sm text-slate-400 mt-2">Loading exchange rates...</p>}
+                        {rateError && <p className="text-sm text-red-400 mt-2">{rateError}</p>}
                         {usdEquivalent && (
-                          <p className="text-sm text-green-600 mt-1">
+                          <p className="text-sm text-emerald-400 mt-2 font-medium">
                             ≈ ${usdEquivalent} USD
                           </p>
                         )}
@@ -670,9 +699,9 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
                     </div>
                     
                     <div>
-                      <label className="block text-gray-700 mb-2">Fiat Currency</label>
+                      <label className="block text-slate-300 mb-2 font-medium">Fiat Currency</label>
                       <select
-                        className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full p-3 bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all duration-200"
                         value={selectedFiat}
                         onChange={(e) => setSelectedFiat(e.target.value)}
                         disabled={isLoadingFiats || supportedFiats.length === 0}
@@ -683,7 +712,7 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
                           <option>No fiats available</option>
                         ) : (
                           supportedFiats.map((fiat) => (
-                            <option key={fiat} value={fiat}>
+                            <option key={fiat} value={fiat} className="bg-slate-800">
                               {fiat}
                             </option>
                           ))
@@ -692,9 +721,9 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
                     </div>
                     
                     <div className="md:col-span-2">
-                      <label className="block text-gray-700 mb-2">Select Token</label>
+                      <label className="block text-slate-300 mb-2 font-medium">Select Token</label>
                       <select
-                        className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full p-3 bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all duration-200"
                         value={selectedToken}
                         onChange={(e) => setSelectedToken(e.target.value)}
                         disabled={isLoadingTokens || supportedTokens.length === 0 || isLoadingTokenDetails}
@@ -705,7 +734,7 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
                           <option>No tokens available</option>
                         ) : (
                           tokenDetails.map((token) => (
-                            <option key={token.address} value={token.address}>
+                            <option key={token.address} value={token.address} className="bg-slate-800">
                               {token.symbol} ({token.name}) - {token.address.substring(0, 6)}...{token.address.substring(token.address.length - 4)}
                             </option>
                           ))
@@ -715,21 +744,21 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
                   </div>
 
                   {/* Information Note - positioned above submit button */}
-                  <div className="md:col-span-2 mt-4 mb-2 bg-blue-50 p-3 rounded-md border border-blue-200">
-                    <p className="text-sm text-blue-700">
-                      <strong>Note:</strong> In production, this app will also have a Razorpay or similar payment gateways' button here for users to send the respective fiat. Upon confirmation it will execute the <code className="bg-blue-100 px-1 rounded">fullfillOrder()</code> function of the Ramp contract automatically which will complete the order. For now the fullFillOrder() function can be called by the admin through the admin dashboard.
+                  <div className="md:col-span-2 mt-4 mb-2 bg-emerald-900/20 backdrop-blur-sm border border-emerald-500/30 p-4 rounded-lg">
+                    <p className="text-sm text-emerald-300 leading-relaxed">
+                      <strong className="text-emerald-400">Note:</strong> In production, this app will also have a Razorpay or similar payment gateways' button here for users to send the respective fiat. Upon confirmation it will execute the <code className="bg-emerald-800/50 px-2 py-1 rounded text-emerald-400">fullfillOrder()</code> function of the Ramp contract automatically which will complete the order. For now the fullFillOrder() function can be called by the admin through the admin dashboard.
                     </p>
                   </div>
                 </>
               ) : (
                 <>
                   {/* Crypto to Fiat Form */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-gray-700 mb-2">Token Amount</label>
+                      <label className="block text-slate-300 mb-2 font-medium">Token Amount</label>
                       <input
                         type="number"
-                        className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full p-3 bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all duration-200"
                         placeholder="Enter token amount"
                         value={tokenAmount}
                         onChange={(e) => setTokenAmount(e.target.value)}
@@ -737,9 +766,9 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
                     </div>
                     
                     <div>
-                      <label className="block text-gray-700 mb-2">Fiat Currency</label>
+                      <label className="block text-slate-300 mb-2 font-medium">Fiat Currency</label>
                       <select
-                        className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full p-3 bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all duration-200"
                         value={selectedFiat}
                         onChange={(e) => setSelectedFiat(e.target.value)}
                         disabled={isLoadingFiats || supportedFiats.length === 0}
@@ -750,7 +779,7 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
                           <option>No fiats available</option>
                         ) : (
                           supportedFiats.map((fiat) => (
-                            <option key={fiat} value={fiat}>
+                            <option key={fiat} value={fiat} className="bg-slate-800">
                               {fiat}
                             </option>
                           ))
@@ -759,9 +788,9 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
                     </div>
                     
                     <div className="md:col-span-2">
-                      <label className="block text-gray-700 mb-2">Select Token</label>
+                      <label className="block text-slate-300 mb-2 font-medium">Select Token</label>
                       <select
-                        className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full p-3 bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all duration-200"
                         value={selectedToken}
                         onChange={(e) => setSelectedToken(e.target.value)}
                         disabled={isLoadingTokens || supportedTokens.length === 0 || isLoadingTokenDetails}
@@ -772,7 +801,7 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
                           <option>No tokens available</option>
                         ) : (
                           tokenDetails.map((token) => (
-                            <option key={token.address} value={token.address}>
+                            <option key={token.address} value={token.address} className="bg-slate-800">
                               {token.symbol} ({token.name}) - {token.address.substring(0, 6)}...{token.address.substring(token.address.length - 4)}
                             </option>
                           ))
@@ -781,34 +810,34 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
                     </div>
                     
                     <div className="md:col-span-2">
-                      <label className="block text-gray-700 mb-2">Payment Method</label>
-                      <div className="flex space-x-4">
-                        <label className="flex items-center">
+                      <label className="block text-slate-300 mb-3 font-medium">Payment Method</label>
+                      <div className="flex space-x-6">
+                        <label className="flex items-center cursor-pointer group">
                           <input
                             type="radio"
-                            className="mr-2"
+                            className="mr-3 w-4 h-4 text-emerald-500 bg-slate-800 border-slate-600 focus:ring-emerald-500 focus:ring-2"
                             checked={paymentMethod === 'bank'}
                             onChange={() => setPaymentMethod('bank')}
                           />
-                          Bank Transfer
+                          <span className="text-slate-300 group-hover:text-white transition-colors duration-200">Bank Transfer</span>
                         </label>
-                        <label className="flex items-center">
+                        <label className="flex items-center cursor-pointer group">
                           <input
                             type="radio"
-                            className="mr-2"
+                            className="mr-3 w-4 h-4 text-emerald-500 bg-slate-800 border-slate-600 focus:ring-emerald-500 focus:ring-2"
                             checked={paymentMethod === 'upi'}
                             onChange={() => setPaymentMethod('upi')}
                           />
-                          UPI
+                          <span className="text-slate-300 group-hover:text-white transition-colors duration-200">UPI</span>
                         </label>
                       </div>
                     </div>
                     
                     {paymentMethod === 'bank' ? (
                       <div className="md:col-span-2">
-                        <label className="block text-gray-700 mb-2">Bank Details</label>
+                        <label className="block text-slate-300 mb-2 font-medium">Bank Details</label>
                         <textarea
-                          className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full p-3 bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all duration-200 resize-none"
                           placeholder="Enter your bank account details"
                           rows={3}
                           value={bankDetails}
@@ -817,10 +846,10 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
                       </div>
                     ) : (
                       <div className="md:col-span-2">
-                        <label className="block text-gray-700 mb-2">UPI ID</label>
+                        <label className="block text-slate-300 mb-2 font-medium">UPI ID</label>
                         <input
                           type="text"
-                          className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full p-3 bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all duration-200"
                           placeholder="Enter your UPI ID"
                           value={upiId}
                           onChange={(e) => setUpiId(e.target.value)}
@@ -829,20 +858,31 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
                     )}
                     
                     {/* Information Note */}
-                    <div className="md:col-span-2 mt-2 mb-4 bg-blue-50 p-3 rounded-md border border-blue-200">
-                      <p className="text-sm text-blue-700">
-                        <strong>Note:</strong> In production, after the successful placement of the order, first the money will be automatically sent to the user on this bank account/UPI ID using a payment gateway. Then, upon confirmation it will execute the <code className="bg-blue-100 px-1 rounded">fullfillOrder()</code> function of the Ramp contract automatically which will complete the order. For now the fullFillOrder() function can be called by the admin through the admin dashboard.
+                    <div className="md:col-span-2 mt-2 mb-4 bg-emerald-900/20 backdrop-blur-sm border border-emerald-500/30 p-4 rounded-lg">
+                      <p className="text-sm text-emerald-300 leading-relaxed">
+                        <strong className="text-emerald-400">Note:</strong> In production, after the successful placement of the order, first the money will be automatically sent to the user on this bank account/UPI ID using a payment gateway. Then, upon confirmation it will execute the <code className="bg-emerald-800/50 px-2 py-1 rounded text-emerald-400">fullfillOrder()</code> function of the Ramp contract automatically which will complete the order. For now the fullFillOrder() function can be called by the admin through the admin dashboard.
                       </p>
                     </div>
                   </div>
                 </>
               )}
               
-              <div className="mt-6">
+              <div className="mt-8 flex justify-center">
                 <button
                   onClick={handleSubmitOrder}
-                  className="py-2 px-4 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`group relative py-3 px-8 rounded-lg font-medium transition-all duration-200 ${
+                    isSubmitting
+                      ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                      : (activeOrderTab === 'fiatToCrypto' && (!fiatAmount || !selectedFiat || !selectedToken || !usdEquivalent)) ||
+                        (activeOrderTab === 'cryptoToFiat' && 
+                          (!tokenAmount || !selectedFiat || !selectedToken || 
+                          (paymentMethod === 'bank' && !bankDetails) || 
+                          (paymentMethod === 'upi' && !upiId)))
+                      ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-700 hover:to-emerald-600 hover:shadow-lg hover:shadow-emerald-500/25 transform hover:-translate-y-0.5'
+                  }`}
                   disabled={
+                    isSubmitting ||
                     (activeOrderTab === 'fiatToCrypto' && (!fiatAmount || !selectedFiat || !selectedToken || !usdEquivalent)) ||
                     (activeOrderTab === 'cryptoToFiat' && 
                       (!tokenAmount || !selectedFiat || !selectedToken || 
@@ -850,9 +890,30 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
                       (paymentMethod === 'upi' && !upiId)))
                   }
                 >
-                  Submit Order
+                  {isSubmitting && (
+                    <>
+                      <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-emerald-500 rounded-lg animate-pulse"></div>
+                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    </>
+                  )}
+                  <span className="relative flex items-center gap-2">
+                    {!isSubmitting && (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                    )}
+                    {isSubmitting ? 'Submitting Order...' : 'Submit Order'}
+                  </span>
                 </button>
               </div>
+              
+              {transactionError && (
+                <div className="mt-4 p-4 bg-red-900/30 border border-red-500/50 rounded-lg text-red-400 text-sm text-center">
+                  {transactionError}
+                </div>
+              )}
             </div>
           </div>
         </div>

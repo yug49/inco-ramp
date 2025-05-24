@@ -14,10 +14,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className="dark">
+      <body className="font-sans antialiased">
         <Providers>
-          <div className="min-h-screen flex flex-col bg-gray-50">
+          <div className="min-h-screen flex flex-col bg-slate-950">
             {/* The Navigation component will be rendered at the top of every page */}
             <NavigationWrapper />
             <div className="flex-grow">

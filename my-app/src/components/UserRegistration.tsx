@@ -243,9 +243,12 @@ const UserRegistration: React.FC = () => {
   if (!isConnected) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
-        <div className="text-center p-8 rounded-lg shadow-lg max-w-md w-full">
-          <h1 className="text-2xl font-bold mb-4">Welcome to Inco Ramp</h1>
-          <p className="mb-4">Please connect your wallet to continue.</p>
+        <div className="text-center bg-slate-900/50 backdrop-blur-sm p-10 rounded-2xl border border-slate-800 max-w-md w-full">
+          <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-6">
+            <span className="text-white font-bold text-lg">IR</span>
+          </div>
+          <h1 className="text-2xl font-semibold text-slate-200 mb-4">Welcome to Inco Ramp</h1>
+          <p className="text-slate-400 mb-6">Please connect your wallet to continue.</p>
         </div>
       </div>
     );
@@ -254,7 +257,13 @@ const UserRegistration: React.FC = () => {
   if (userStatus === 'LOADING') {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="flex flex-col items-center">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-slate-800 border-t-emerald-500 rounded-full animate-spin"></div>
+            <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-emerald-400 rounded-full animate-ping"></div>
+          </div>
+          <p className="mt-6 text-slate-400 font-medium">Loading your profile...</p>
+        </div>
       </div>
     );
   }
@@ -262,9 +271,14 @@ const UserRegistration: React.FC = () => {
   if (userStatus === 'PENDING_VERIFICATION') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
-        <div className="text-center p-8 rounded-lg shadow-lg max-w-md w-full">
-          <h1 className="text-2xl font-bold mb-4">Verification Pending</h1>
-          <p className="mb-4">
+        <div className="text-center bg-slate-900/50 backdrop-blur-sm p-10 rounded-2xl border border-slate-800 max-w-md w-full">
+          <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center mx-auto mb-6">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-semibold text-slate-200 mb-4">Verification Pending</h1>
+          <p className="text-slate-400 leading-relaxed">
             Your registration request has been submitted and is pending verification by the admin.
             Please check back later.
           </p>
@@ -275,66 +289,77 @@ const UserRegistration: React.FC = () => {
   
   if (userStatus === 'NOT_REGISTERED') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
-          <h1 className="text-2xl font-bold mb-6 text-center">User Registration</h1>
+      <div className="min-h-screen flex flex-col items-center justify-center p-6">
+        <div className="bg-slate-900/50 backdrop-blur-sm p-8 rounded-2xl border border-slate-800 max-w-lg w-full">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-semibold text-slate-200 mb-2">User Registration</h1>
+            <p className="text-slate-400">Complete your KYC verification to access the platform</p>
+          </div>
           
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Full Name</label>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Full Name</label>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                className="w-full p-2 border rounded"
+                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                placeholder="Enter your full name"
                 required
               />
             </div>
             
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Phone Number</label>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Phone Number</label>
               <input
                 type="tel"
                 name="phoneNumber"
                 value={formData.phoneNumber}
                 onChange={handleInputChange}
-                className="w-full p-2 border rounded"
+                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                placeholder="Enter your phone number"
                 required
               />
             </div>
             
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Date of Birth</label>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Date of Birth</label>
               <input
                 type="date"
                 name="dob"
                 value={formData.dob}
                 onChange={handleInputChange}
-                className="w-full p-2 border rounded"
+                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                 required
               />
             </div>
             
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Residential Address</label>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Residential Address</label>
               <input
                 type="text"
                 name="address"
                 value={formData.address}
                 onChange={handleInputChange}
-                className="w-full p-2 border rounded"
+                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                placeholder="Enter your residential address"
                 required
               />
             </div>
             
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">KYC Document Type</label>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">KYC Document Type</label>
               <select
                 name="kycDocumentType"
                 value={formData.kycDocumentType}
                 onChange={handleInputChange}
-                className="w-full p-2 border rounded"
+                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all cursor-not-allowed opacity-75"
                 required
                 disabled
               >
@@ -342,14 +367,15 @@ const UserRegistration: React.FC = () => {
               </select>
             </div>
             
-            <div className="mb-6">
-              <label className="block text-sm font-medium mb-1">Document Number</label>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Document Number</label>
               <input
-                type="number" // Use type="number" instead of "text"
+                type="number"
                 name="kycDocumentNumber"
                 value={formData.kycDocumentNumber}
                 onChange={handleInputChange}
-                className="w-full p-2 border rounded"
+                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                placeholder="Enter your document number"
                 required
               />
             </div>
@@ -357,11 +383,25 @@ const UserRegistration: React.FC = () => {
             <button
               type="submit"
               disabled={isPending || isEncrypting}
-              className={`w-full py-2 px-4 rounded font-medium text-white ${
-                isPending || isEncrypting ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
+              className={`w-full py-4 px-6 rounded-xl font-semibold text-white transition-all duration-200 ${
+                isPending || isEncrypting 
+                  ? 'bg-slate-700 cursor-not-allowed opacity-50' 
+                  : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 hover:shadow-lg hover:shadow-emerald-500/25 transform hover:-translate-y-0.5'
               }`}
             >
-              {isPending ? 'Submitting...' : isEncrypting ? 'Encrypting...' : 'Register'}
+              {isPending ? (
+                <div className="flex items-center justify-center">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Submitting...
+                </div>
+              ) : isEncrypting ? (
+                <div className="flex items-center justify-center">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Encrypting...
+                </div>
+              ) : (
+                'Register & Complete KYC'
+              )}
             </button>
           </form>
 
