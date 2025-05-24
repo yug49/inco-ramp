@@ -1,13 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useChainId, useReadContract, useWriteContract } from 'wagmi';
 import { chainsToRamp, rampAbi } from '../constants';
+import { useNotifications } from './NotificationContext';
 
 interface FiatManagementProps {
   onBack: () => void;
   addNotification?: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
-const FiatManagement: React.FC<FiatManagementProps> = ({ onBack, addNotification }) => {
+const FiatManagement: React.FC<FiatManagementProps> = ({ onBack, addNotification: parentAddNotification }) => {
+  // Use the global notification context, but still respect the parent's notification system if provided
+  const { addNotification: globalAddNotification } = useNotifications();
+  
+  // Create a notification handler that respects both systems
+  const addNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    // Always use the global system
+    globalAddNotification(message, type);
+    
+    // And if parent provided one, use that too
+    if (parentAddNotification) {
+      parentAddNotification(message, type);
+    }
+  };
   const chainId = useChainId();
   const rampAddress = chainsToRamp[chainId]?.ramp;
   

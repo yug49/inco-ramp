@@ -4,6 +4,7 @@ import { chainsToRamp, rampAbi } from '../constants';
 import { Hex, createWalletClient, http, custom } from 'viem';
 import { getViemChain, supportedChains } from '@inco/js';
 import { Lightning } from '@inco/js/lite';
+import { useNotifications } from './NotificationContext';
 
 // Types for user data returned from contract
 interface ApprovedUserData {
@@ -49,6 +50,9 @@ const erc20Abi = [
 
 const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
   console.log("Dashboard component rendering with approvedUserData:", approvedUserData);
+  
+  // Use the global notification context
+  const { addNotification } = useNotifications();
   
   const [decryptedData, setDecryptedData] = useState<number | null>(null);
   const [isDecrypting, setIsDecrypting] = useState<boolean>(false);
@@ -325,7 +329,9 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
   // Handle decryption request
   const handleDecryptData = async () => {
     if (!userAddress || !rampAddress || !approvedUserData?.kycData) {
-      setError("Missing required data for decryption");
+      const errorMsg = "Missing required data for decryption";
+      setError(errorMsg);
+      addNotification(errorMsg, 'error');
       return;
     }
     
@@ -380,6 +386,9 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
         const decryptedValue = Number(resultPlaintext.value);
         console.log("Decrypted value:", decryptedValue);
         setDecryptedData(decryptedValue);
+        
+        // Show success notification
+        addNotification("Successfully decrypted your KYC document details", 'success');
       } catch (innerError: any) {
         console.error("Error during reencryption process:", innerError);
         throw new Error(`Decryption process failed: ${innerError.message}`);
@@ -387,7 +396,9 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
       
     } catch (err) {
       console.error("Error decrypting data:", err);
-      setError("Failed to decrypt data. Please try again.");
+      const errorMsg = "Failed to decrypt data. Please try again.";
+      setError(errorMsg);
+      addNotification(errorMsg, 'error');
     } finally {
       setIsDecrypting(false);
     }
@@ -406,7 +417,9 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
   const handleSubmitOrder = async () => {
     if (!userAddress || !rampAddress) {
       console.error("Missing required address data");
-      setTransactionError("Missing wallet address or contract address. Please ensure your wallet is connected.");
+      const errorMsg = "Missing wallet address or contract address. Please ensure your wallet is connected.";
+      setTransactionError(errorMsg);
+      addNotification(errorMsg, 'error');
       return;
     }
     
@@ -456,11 +469,13 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
           setFiatAmount('');
           setUsdEquivalent('');
           
-          // Show success message
-          alert(`Order submitted successfully! Transaction hash: ${hash}`);
+          // Show success message using notification instead of alert
+          addNotification(`Fiat to Crypto order submitted successfully!`, 'success');
         } catch (txError) {
           console.error('Transaction error:', txError);
-          setTransactionError(`Transaction error: ${txError instanceof Error ? txError.message : 'Unknown error'}`);
+          const errorMsg = `Transaction error: ${txError instanceof Error ? txError.message : 'Unknown error'}`;
+          setTransactionError(errorMsg);
+          addNotification(errorMsg, 'error');
         }
       } else {
         // For Crypto to Fiat orders
@@ -543,11 +558,13 @@ const Dashboard: React.FC<DashboardProps> = ({ approvedUserData }) => {
           setBankDetails('');
           setUpiId('');
           
-          // Show success message
-          alert(`Order submitted successfully! Transaction hash: ${hash}`);
+          // Show success message using notification instead of alert
+          addNotification(`Crypto to Fiat order submitted successfully!`, 'success');
         } catch (txError) {
           console.error('Transaction error:', txError);
-          setTransactionError(`Transaction error: ${txError instanceof Error ? txError.message : 'Unknown error'}`);
+          const errorMsg = `Transaction error: ${txError instanceof Error ? txError.message : 'Unknown error'}`;
+          setTransactionError(errorMsg);
+          addNotification(errorMsg, 'error');
         }
       }
     } catch (error) {

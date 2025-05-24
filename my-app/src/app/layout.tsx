@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers"; // Import the Providers component
 import NavigationWrapper from "./navigation"; // Import the NavigationWrapper
+import { AnimatedWarrior } from "../components/AnimatedWarrior"; // Import the AnimatedWarrior component
+import { NotificationProvider } from "../components/NotificationContext"; // Import the NotificationProvider
 
 export const metadata: Metadata = {
   title: "Inco Ramp",
@@ -17,13 +19,17 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className="font-sans antialiased">
         <Providers>
-          <div className="min-h-screen flex flex-col bg-slate-950">
-            {/* The Navigation component will be rendered at the top of every page */}
-            <NavigationWrapper />
-            <div className="flex-grow">
-              {children}
+          <NotificationProvider>
+            <div className="min-h-screen flex flex-col bg-slate-950">
+              {/* The Navigation component will be rendered at the top of every page */}
+              <NavigationWrapper />
+              <div className="flex-grow">
+                {children}
+              </div>
+              {/* Animated warrior assistant fixed at bottom right */}
+              <AnimatedWarrior />
             </div>
-          </div>
+          </NotificationProvider>
         </Providers>
       </body>
     </html>

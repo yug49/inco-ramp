@@ -7,6 +7,7 @@ import { getViemChain, supportedChains } from '@inco/js';
 import { Lightning } from '@inco/js/lite';
 import TokenManagement from './TokenManagement';
 import FiatManagement from './FiatManagement';
+import { useNotifications } from './NotificationContext';
 
 interface PendingUser {
   userAddress: string;
@@ -77,7 +78,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
   const [decryptedData, setDecryptedData] = useState<number | null>(null);
   const [decryptionError, setDecryptionError] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<'dashboard' | 'tokens' | 'fiat' | 'approved-users'>('dashboard');
-  const [notifications, setNotifications] = useState<NotificationProps[]>([]);
   const [approvedUserAddresses, setApprovedUserAddresses] = useState<string[]>([]);
   const [isDeletingUser, setIsDeletingUser] = useState<string | null>(null);
   const [isDecryptingUserDetails, setIsDecryptingUserDetails] = useState(false);
@@ -87,18 +87,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
   const [tokenDetails, setTokenDetails] = useState<TokenInfo[]>([]);
   const [isLoadingTokenDetails, setIsLoadingTokenDetails] = useState<boolean>(false);
   
-  // Add notification handler
-  const addNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    const id = Date.now();
-    setNotifications([...notifications, { message, type, id }]);
-    
-    // Auto-remove notification after 5 seconds
-    setTimeout(() => {
-      setNotifications(currentNotifications => 
-        currentNotifications.filter(notification => notification.id !== id)
-      );
-    }, 5000);
-  };
+  // Use the global notification context
+  const { addNotification } = useNotifications();
   
   // Handle view change with notifications
   const handleViewChange = (view: 'dashboard' | 'tokens' | 'fiat' | 'approved-users') => {
@@ -122,12 +112,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
     setActiveView(view);
   };
   
-  // Clear all notifications when unmounting
-  useEffect(() => {
-    return () => {
-      setNotifications([]);
-    };
-  }, []);
+  // No need to clear notifications anymore as they're managed globally
   
   const { writeContractAsync } = useWriteContract();
   
@@ -788,29 +773,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ pendingUsers }) => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Notifications */}
-      <div className="fixed top-4 right-4 z-50 w-80">
-        {notifications.map(notification => (
-          <div 
-            key={notification.id} 
-            className={`mb-2 p-4 rounded-xl shadow-lg text-sm flex justify-between items-center backdrop-blur-sm transition-all duration-300 border ${
-              notification.type === 'success' 
-                ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' 
-                : notification.type === 'error' 
-                  ? 'bg-red-500/10 text-red-300 border-red-500/30' 
-                  : 'bg-blue-500/10 text-blue-300 border-blue-500/30'
-            }`}
-          >
-            <div>{notification.message}</div>
-            <button 
-              onClick={() => setNotifications(notifications.filter(n => n.id !== notification.id))} 
-              className="ml-2 text-slate-400 hover:text-slate-200 transition-colors duration-200"
-            >
-              ×
-            </button>
-          </div>
-        ))}
-      </div>
+      {/* Notifications are now handled by the WarriorNotificationDialog component */}
 
       {/* Content based on active view */}
       {activeView === 'tokens' && (

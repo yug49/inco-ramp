@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useChainId, useReadContract, useWriteContract, useReadContracts } from 'wagmi';
 import { chainsToRamp, rampAbi } from '../constants';
+import { useNotifications } from './NotificationContext';
 
 interface TokenManagementProps {
   onBack: () => void;
@@ -30,7 +31,20 @@ const erc20Abi = [
   }
 ] as const;
 
-const TokenManagement: React.FC<TokenManagementProps> = ({ onBack, addNotification }) => {
+const TokenManagement: React.FC<TokenManagementProps> = ({ onBack, addNotification: parentAddNotification }) => {
+  // Use the global notification context, but still respect the parent's notification system if provided
+  const { addNotification: globalAddNotification } = useNotifications();
+  
+  // Create a notification handler that respects both systems
+  const addNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    // Always use the global system
+    globalAddNotification(message, type);
+    
+    // And if parent provided one, use that too
+    if (parentAddNotification) {
+      parentAddNotification(message, type);
+    }
+  };
   const chainId = useChainId();
   const rampAddress = chainsToRamp[chainId]?.ramp;
   

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getViemChain, supportedChains } from '@inco/js';
 import { Lightning } from '@inco/js/lite'
 import { createWalletClient, http, custom } from 'viem';
+import { useNotifications } from './NotificationContext';
 
 // Add type declaration for window.ethereum
 declare global {
@@ -45,6 +46,9 @@ const UserRegistration: React.FC = () => {
   // Get chain and account information
   const chainId = useChainId();
   const { address: userAddress, isConnected } = useAccount();
+  
+  // Use the global notification context
+  const { addNotification } = useNotifications();
   
   // Form state
   const [formData, setFormData] = useState<FormData>({
@@ -114,9 +118,10 @@ const UserRegistration: React.FC = () => {
     // Check if user is approved
     if (approvedUserData && approvedUserData.userAddress !== '0x0000000000000000000000000000000000000000') {
       setUserStatus('VERIFIED');
+      // Show verification success notification
+      addNotification('Your account has been verified! Welcome to Inco Ramp.', 'success');
       // Redirect to dashboard if user is verified
       if (typeof window !== 'undefined') {
-        router.push('/dashboard');
         router.push('/dashboard');
       }
       return;
@@ -231,9 +236,12 @@ const UserRegistration: React.FC = () => {
       // Refresh user data
       await Promise.all([refetchPendingUser(), refetchApprovedUser()]);
       
+      // Show success notification
+      addNotification('Registration successful! Your KYC information has been submitted for verification.', 'success');
+      
     } catch (error) {
       console.error('Error registering user:', error);
-      alert('Failed to register. Please try again.');
+      addNotification('Failed to register. Please try again.', 'error');
     } finally {
       setIsEncrypting(false);
     }
