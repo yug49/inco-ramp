@@ -53,7 +53,7 @@ export default function Home() {
             <span className="text-white font-bold text-xl">IR</span>
           </div>
           <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-slate-200 via-emerald-400 to-slate-200 bg-clip-text text-transparent">
-            Inco Ramp
+            Crypto-Fiat Gateway
           </h1>
           <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
             Secure, private, and compliant crypto on-ramp and off-ramp platform with built-in KYC verification
@@ -83,7 +83,7 @@ export default function Home() {
                 </svg>
               </div>
               <h2 className="text-2xl font-semibold text-slate-200 mb-4">
-                Welcome to Inco Ramp
+                Welcome to Crypto-Fiat Gateway
               </h2>
               <p className="text-slate-400 mb-8 leading-relaxed">
                 Connect your wallet to start using our secure crypto on-ramp and off-ramp services

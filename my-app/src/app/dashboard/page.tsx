@@ -46,7 +46,7 @@ export default function DashboardPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-semibold text-slate-200 mb-4">Inco Ramp Dashboard</h1>
+          <h1 className="text-3xl font-semibold text-slate-200 mb-4">Crypto-Fiat Gateway Dashboard</h1>
           <p className="text-slate-400 mb-8 leading-relaxed">
             Please connect your wallet to access your dashboard and manage your transactions
           </p>

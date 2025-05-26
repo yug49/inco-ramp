@@ -119,7 +119,7 @@ const UserRegistration: React.FC = () => {
     if (approvedUserData && approvedUserData.userAddress !== '0x0000000000000000000000000000000000000000') {
       setUserStatus('VERIFIED');
       // Show verification success notification
-      addNotification('Your account has been verified! Welcome to Inco Ramp.', 'success');
+      addNotification('Your account has been verified! Welcome to Crypto-Fiat Gateway.', 'success');
       // Redirect to dashboard if user is verified
       if (typeof window !== 'undefined') {
         router.push('/dashboard');
@@ -255,7 +255,7 @@ const UserRegistration: React.FC = () => {
           <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-6">
             <span className="text-white font-bold text-lg">IR</span>
           </div>
-          <h1 className="text-2xl font-semibold text-slate-200 mb-4">Welcome to Inco Ramp</h1>
+          <h1 className="text-2xl font-semibold text-slate-200 mb-4">Welcome to Crypto-Fiat Gateway</h1>
           <p className="text-slate-400 mb-6">Please connect your wallet to continue.</p>
         </div>
       </div>

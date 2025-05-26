@@ -20,7 +20,7 @@ const Navigation: React.FC = () => {
   });
   
   // Check if current user is the owner
-  const isOwner = ownerAddress && userAddress && 
+  const isOwner: boolean = !!ownerAddress && !!userAddress && 
     ownerAddress.toLowerCase() === userAddress.toLowerCase();
 
   return (
@@ -34,10 +34,10 @@ const Navigation: React.FC = () => {
               className="flex items-center space-x-3 group"
             >
               <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">IR</span>
+                <span className="text-white font-bold text-sm">CFG</span>
               </div>
               <span className="text-xl font-semibold text-slate-200 group-hover:text-emerald-400 transition-colors">
-                Inco Ramp
+                Crypto-Fiat Gateway
               </span>
             </Link>
             

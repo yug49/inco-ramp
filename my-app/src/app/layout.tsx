@@ -6,7 +6,7 @@ import { AnimatedWarrior } from "../components/AnimatedWarrior"; // Import the A
 import { NotificationProvider } from "../components/NotificationContext"; // Import the NotificationProvider
 
 export const metadata: Metadata = {
-  title: "Inco Ramp",
+  title: "Crypto-Fiat Gateway",
   description: "A crypto on-ramp and off-ramp platform with KYC",
 };
 
